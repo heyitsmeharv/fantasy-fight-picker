@@ -1,6 +1,16 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useAuth } from "./AuthContext";
+import { useResults } from "./ResultsContext";
+import * as picksApi from "../api/picks";
 
-const STORAGE_KEY = "fantasy-ufc-picks-v4";
+const STORAGE_KEY = "fantasy-ufc-picks-v5";
 const PicksContext = createContext(null);
 
 const loadInitialPickCards = () => {
@@ -41,7 +51,31 @@ const buildBaseCard = (event) => ({
   picks: [],
 });
 
+const replaceCard = (cards, nextCard) => {
+  const index = cards.findIndex((card) => card.eventId === nextCard.eventId);
+
+  if (nextCard.picks.length === 0) {
+    if (index === -1) {
+      return cards;
+    }
+
+    const next = [...cards];
+    next.splice(index, 1);
+    return next;
+  }
+
+  if (index === -1) {
+    return [nextCard, ...cards];
+  }
+
+  const next = [...cards];
+  next[index] = nextCard;
+  return next;
+};
+
 export const PicksProvider = ({ children }) => {
+  const { isAuthenticated, hasAccessToken } = useAuth();
+  const { events } = useResults();
   const [pickCards, setPickCards] = useState(loadInitialPickCards);
 
   useEffect(() => {
@@ -50,28 +84,62 @@ export const PicksProvider = ({ children }) => {
     }
   }, [pickCards]);
 
-  const savePick = (event, fight, fighter) => {
-    if (!event || !fight || !fighter) {
-      return;
-    }
+  useEffect(() => {
+    let cancelled = false;
 
-    setPickCards((current) => {
-      const next = [...current];
-      const eventIndex = next.findIndex((card) => card.eventId === event.id);
+    const loadRemotePicks = async () => {
+      if (!isAuthenticated || !hasAccessToken || events.length === 0) {
+        return;
+      }
 
-      const existingCard =
-        eventIndex === -1
-          ? buildBaseCard(event)
-          : {
-              ...next[eventIndex],
-              picks: [...next[eventIndex].picks],
-            };
+      try {
+        const cards = await Promise.all(
+          events.map((event) => picksApi.fetchMyEventPicks(event.id, event))
+        );
 
-      const pickIndex = existingCard.picks.findIndex(
-        (pick) => pick.fightId === fight.id
-      );
+        if (!cancelled) {
+          setPickCards(cards.filter(Boolean).filter((card) => card.picks.length > 0));
+        }
+      } catch (error) {
+        console.error("PicksContext loadRemotePicks error", error);
+      }
+    };
 
-      const existingPick = pickIndex === -1 ? null : existingCard.picks[pickIndex];
+    loadRemotePicks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, hasAccessToken, events]);
+
+  const persistCard = useCallback(
+    async (event, nextCard) => {
+      if (!hasAccessToken) {
+        return nextCard;
+      }
+
+      const saved = await picksApi.saveMyEventPicks(event.id, nextCard, event);
+      return saved;
+    },
+    [hasAccessToken]
+  );
+
+  const savePick = useCallback(
+    async (event, fight, fighter) => {
+      if (!event || !fight || !fighter) {
+        return;
+      }
+
+      const previousCard =
+        pickCards.find((card) => card.eventId === event.id) || buildBaseCard(event);
+
+      const nextCard = {
+        ...previousCard,
+        picks: [...previousCard.picks],
+      };
+
+      const pickIndex = nextCard.picks.findIndex((pick) => pick.fightId === fight.id);
+      const existingPick = pickIndex === -1 ? null : nextCard.picks[pickIndex];
       const isSameFighter = existingPick?.selectionId === fighter.id;
 
       const updatedPick = {
@@ -83,112 +151,147 @@ export const PicksProvider = ({ children }) => {
       };
 
       if (pickIndex === -1) {
-        existingCard.picks.push(updatedPick);
+        nextCard.picks.push(updatedPick);
       } else {
-        existingCard.picks[pickIndex] = updatedPick;
+        nextCard.picks[pickIndex] = updatedPick;
       }
 
-      existingCard.picks = sortPicksForEvent(event, existingCard.picks);
-      existingCard.selectedCount = existingCard.picks.length;
+      nextCard.picks = sortPicksForEvent(event, nextCard.picks);
+      nextCard.selectedCount = nextCard.picks.length;
 
-      if (eventIndex === -1) {
-        next.unshift(existingCard);
-      } else {
-        next[eventIndex] = existingCard;
+      setPickCards((current) => replaceCard(current, nextCard));
+
+      try {
+        if (hasAccessToken) {
+          const saved = await persistCard(event, nextCard);
+          setPickCards((current) => replaceCard(current, saved));
+        }
+      } catch (error) {
+        setPickCards((current) => replaceCard(current, previousCard));
+        console.error("PicksContext savePick error", error);
+      }
+    },
+    [pickCards, hasAccessToken, persistCard]
+  );
+
+  const removePick = useCallback(
+    async (eventId, fightId) => {
+      const event = events.find((entry) => entry.id === eventId);
+
+      if (!event) {
+        return;
       }
 
-      return next;
-    });
-  };
+      const previousCard =
+        pickCards.find((card) => card.eventId === eventId) || buildBaseCard(event);
 
-  const removePick = (eventId, fightId) => {
-    setPickCards((current) => {
-      const next = [...current];
-      const eventIndex = next.findIndex((card) => card.eventId === eventId);
-
-      if (eventIndex === -1) {
-        return next;
-      }
-
-      const updatedCard = {
-        ...next[eventIndex],
-        picks: next[eventIndex].picks.filter((pick) => pick.fightId !== fightId),
+      const nextCard = {
+        ...previousCard,
+        picks: previousCard.picks.filter((pick) => pick.fightId !== fightId),
       };
 
-      updatedCard.selectedCount = updatedCard.picks.length;
+      nextCard.selectedCount = nextCard.picks.length;
 
-      if (updatedCard.picks.length === 0) {
-        next.splice(eventIndex, 1);
-        return next;
+      setPickCards((current) => replaceCard(current, nextCard));
+
+      try {
+        if (hasAccessToken) {
+          const saved = await persistCard(event, nextCard);
+          setPickCards((current) => replaceCard(current, saved));
+        }
+      } catch (error) {
+        setPickCards((current) => replaceCard(current, previousCard));
+        console.error("PicksContext removePick error", error);
+      }
+    },
+    [events, pickCards, hasAccessToken, persistCard]
+  );
+
+  const updatePickDetails = useCallback(
+    async (eventId, fightId, details = {}) => {
+      const event = events.find((entry) => entry.id === eventId);
+
+      if (!event) {
+        return;
       }
 
-      next[eventIndex] = updatedCard;
-      return next;
-    });
-  };
+      const previousCard =
+        pickCards.find((card) => card.eventId === eventId) || buildBaseCard(event);
 
-  const updatePickDetails = (eventId, fightId, details = {}) => {
-    setPickCards((current) =>
-      current.map((card) => {
-        if (card.eventId !== eventId) {
-          return card;
+      const nextCard = {
+        ...previousCard,
+        picks: previousCard.picks.map((pick) => {
+          if (pick.fightId !== fightId) {
+            return pick;
+          }
+
+          return {
+            ...pick,
+            predictedMethod:
+              details.predictedMethod !== undefined
+                ? details.predictedMethod
+                : pick.predictedMethod ?? null,
+            predictedRound:
+              details.predictedRound !== undefined
+                ? details.predictedRound
+                : pick.predictedRound ?? null,
+          };
+        }),
+      };
+
+      nextCard.selectedCount = nextCard.picks.length;
+
+      setPickCards((current) => replaceCard(current, nextCard));
+
+      try {
+        if (hasAccessToken) {
+          const saved = await persistCard(event, nextCard);
+          setPickCards((current) => replaceCard(current, saved));
         }
-
-        return {
-          ...card,
-          picks: card.picks.map((pick) => {
-            if (pick.fightId !== fightId) {
-              return pick;
-            }
-
-            return {
-              ...pick,
-              predictedMethod:
-                details.predictedMethod !== undefined
-                  ? details.predictedMethod
-                  : pick.predictedMethod ?? null,
-              predictedRound:
-                details.predictedRound !== undefined
-                  ? details.predictedRound
-                  : pick.predictedRound ?? null,
-            };
-          }),
-        };
-      })
-    );
-  };
-
-  const getEventCard = (eventId) => {
-    return pickCards.find((card) => card.eventId === eventId) || null;
-  };
-
-  const getEventPickMap = (eventId) => {
-    const card = getEventCard(eventId);
-
-    if (!card) {
-      return {};
-    }
-
-    return card.picks.reduce((acc, pick) => {
-      acc[pick.fightId] = pick.selectionId;
-      return acc;
-    }, {});
-  };
-
-  return (
-    <PicksContext.Provider
-      value={{
-        pickCards,
-        savePick,
-        removePick,
-        updatePickDetails,
-        getEventCard,
-        getEventPickMap,
-      }}
-    >
-      {children}
-    </PicksContext.Provider>
+      } catch (error) {
+        setPickCards((current) => replaceCard(current, previousCard));
+        console.error("PicksContext updatePickDetails error", error);
+      }
+    },
+    [events, pickCards, hasAccessToken, persistCard]
   );
+
+  const getEventCard = useCallback(
+    (eventId) => {
+      return pickCards.find((card) => card.eventId === eventId) || null;
+    },
+    [pickCards]
+  );
+
+  const getEventPickMap = useCallback(
+    (eventId) => {
+      const card = getEventCard(eventId);
+
+      if (!card) {
+        return {};
+      }
+
+      return card.picks.reduce((acc, pick) => {
+        acc[pick.fightId] = pick.selectionId;
+        return acc;
+      }, {});
+    },
+    [getEventCard]
+  );
+
+  const value = useMemo(
+    () => ({
+      pickCards,
+      savePick,
+      removePick,
+      updatePickDetails,
+      getEventCard,
+      getEventPickMap,
+    }),
+    [pickCards, savePick, removePick, updatePickDetails, getEventCard, getEventPickMap]
+  );
+
+  return <PicksContext.Provider value={value}>{children}</PicksContext.Provider>;
 };
 
 export const usePicks = () => {

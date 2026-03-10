@@ -8,6 +8,28 @@ const EventCard = ({ event, onOpen }) => {
   const fightCount = Array.isArray(event.fights) ? event.fights.length : event.fights;
   const locked = isEventLocked(event);
 
+  const formatDateTimeDisplay = (value) => {
+    if (!value) {
+      return "TBC";
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    }).format(parsed);
+  };
+
   return (
     <Card className="border-white/10 bg-zinc-950/90 text-white backdrop-blur-sm">
       <CardContent className="p-5">
@@ -40,7 +62,7 @@ const EventCard = ({ event, onOpen }) => {
 
           <div className="flex items-center gap-2">
             <Clock3 className="h-4 w-4 text-[#d20a11]" />
-            <span>Locks {event.lockTime}</span>
+            <span>Locks {formatDateTimeDisplay(event.lockTime)}</span>
           </div>
         </div>
 

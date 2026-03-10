@@ -7,19 +7,57 @@ import SectionHeading from "../components/common/SectionHeading";
 import FighterAvatar from "../components/fighters/FighterAvatar";
 import FighterRankBadge from "../components/fighters/FighterRankBadge";
 import FighterStat from "../components/fighters/FighterStat";
-import { upcomingEvents } from "../data/mockData";
+import { useResults } from "../context/ResultsContext";
+
+const getNumericValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const ComparePage = () => {
   const navigate = useNavigate();
   const { fightId } = useParams();
+  const { events } = useResults();
+
+  const allFights = useMemo(() => {
+    return events.flatMap((event) => (Array.isArray(event.fights) ? event.fights : []));
+  }, [events]);
 
   const fight = useMemo(() => {
-    const allFights = upcomingEvents.flatMap((event) => (Array.isArray(event.fights) ? event.fights : []));
-    return allFights.find((entry) => entry.id === fightId) || allFights[0];
-  }, [fightId]);
+    return allFights.find((entry) => entry.id === fightId) || allFights[0] || null;
+  }, [fightId, allFights]);
 
-  const leftStrikeShare = Math.round((fight.left.sigStrikes / (fight.left.sigStrikes + fight.right.sigStrikes)) * 100);
-  const leftTakedownShare = Math.round((fight.left.takedowns / ((fight.left.takedowns + fight.right.takedowns) || 1)) * 100);
+  if (!fight) {
+    return (
+      <Card className="border-white/10 bg-zinc-950/90 text-white">
+        <CardContent className="p-8">
+          <p className="text-2xl font-semibold">Fight not found</p>
+          <p className="mt-2 text-slate-400">
+            There is no fight data available to compare yet.
+          </p>
+          <Button
+            className="mt-6 rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const leftSigStrikes = getNumericValue(fight.left?.sigStrikes);
+  const rightSigStrikes = getNumericValue(fight.right?.sigStrikes);
+  const leftTakedowns = getNumericValue(fight.left?.takedowns);
+  const rightTakedowns = getNumericValue(fight.right?.takedowns);
+
+  const leftStrikeShare = Math.round(
+    (leftSigStrikes / ((leftSigStrikes + rightSigStrikes) || 1)) * 100
+  );
+
+  const leftTakedownShare = Math.round(
+    (leftTakedowns / ((leftTakedowns + rightTakedowns) || 1)) * 100
+  );
 
   return (
     <div className="space-y-6">
@@ -37,6 +75,7 @@ const ComparePage = () => {
           Back
         </Button>
       </div>
+
       <div className="grid gap-6 xl:grid-cols-2">
         {[fight.left, fight.right].map((fighter) => (
           <Card key={fighter.id} className="border-white/10 bg-zinc-950/90 text-white">
@@ -46,16 +85,23 @@ const ComparePage = () => {
                 <div>
                   <p className="text-2xl font-semibold uppercase">{fighter.name}</p>
                   <div className="mt-2 flex items-center gap-3">
-                    <p className="text-slate-400">{fighter.record}</p>
-                    <FighterRankBadge rank={fighter.rank} compact />
+                    <p className="text-slate-400">{fighter.record || "Record TBC"}</p>
+                    <FighterRankBadge rank={fighter.rank || "—"} compact />
                   </div>
                 </div>
               </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
-                <FighterStat label="Reach" value={fighter.reach} />
-                <FighterStat label="Stance" value={fighter.stance} />
-                <FighterStat label="Sig. strikes" value={fighter.sigStrikes} />
-                <FighterStat label="Takedowns" value={fighter.takedowns} />
+                <FighterStat label="Reach" value={fighter.reach || "N/A"} />
+                <FighterStat label="Stance" value={fighter.stance || "N/A"} />
+                <FighterStat
+                  label="Sig. strikes"
+                  value={fighter.sigStrikes ?? "N/A"}
+                />
+                <FighterStat
+                  label="Takedowns"
+                  value={fighter.takedowns ?? "N/A"}
+                />
               </div>
             </CardContent>
           </Card>
@@ -66,6 +112,7 @@ const ComparePage = () => {
         <CardHeader>
           <CardTitle className="text-xl">Quick edge view</CardTitle>
         </CardHeader>
+
         <CardContent className="space-y-5">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-3 flex items-center justify-between text-sm text-slate-300">
@@ -75,6 +122,7 @@ const ComparePage = () => {
             </div>
             <Progress value={leftStrikeShare} className="h-3 bg-white/10" />
           </div>
+
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-3 flex items-center justify-between text-sm text-slate-300">
               <span>{fight.left.name}</span>

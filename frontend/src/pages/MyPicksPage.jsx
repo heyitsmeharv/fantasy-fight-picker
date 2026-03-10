@@ -13,7 +13,8 @@ import {
   calculateOverallTotals,
   calculatePickPoints,
   getOfficialResult,
-  isPickCorrect,
+  getOfficialResultLabel,
+  getPickResultStatus,
 } from "../utils/scoring";
 
 const getStatusBadgeClass = (status) => {
@@ -31,6 +32,10 @@ const getPickResultClass = (result) => {
 
   if (result === "wrong") {
     return "border border-[#d20a11]/20 bg-[#d20a11]/10 text-red-200";
+  }
+
+  if (result === "draw" || result === "disqualification") {
+    return "border border-amber-500/20 bg-amber-500/10 text-amber-200";
   }
 
   return "border border-white/10 bg-white/5 text-slate-300";
@@ -78,6 +83,28 @@ const MyPicksPage = () => {
       </div>
     );
   }
+
+  const formatDateTimeDisplay = (value) => {
+    if (!value) {
+      return "TBC";
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    }).format(parsed);
+  };
 
   return (
     <div className="space-y-6">
@@ -141,7 +168,7 @@ const MyPicksPage = () => {
                       {event?.name || entry.eventId}
                     </CardTitle>
                     <p className="mt-1 text-sm text-slate-400">
-                      {event?.date || "Unknown date"} • Locks {event?.lockTime || "TBC"}
+                      {event?.date || "Unknown date"} • Locks {formatDateTimeDisplay(event?.lockTime) || "TBC"}
                     </p>
                   </div>
 
@@ -179,11 +206,7 @@ const MyPicksPage = () => {
                 {entry.picks.map((pick) => {
                   const officialResult = getOfficialResult(events, entry.eventId, pick.fightId);
                   const earnedPoints = calculatePickPoints(pick, officialResult);
-                  const derivedResult = officialResult
-                    ? isPickCorrect(pick, officialResult)
-                      ? "correct"
-                      : "wrong"
-                    : "pending";
+                  const derivedResult = getPickResultStatus(pick, officialResult);
 
                   return (
                     <div
@@ -202,7 +225,7 @@ const MyPicksPage = () => {
 
                         {officialResult ? (
                           <p className="mt-1 text-sm text-slate-300">
-                            Result: {officialResult.winnerName}
+                            Result: {getOfficialResultLabel(officialResult)}
                             {officialResult.method ? ` • ${officialResult.method}` : ""}
                             {officialResult.round ? ` • R${officialResult.round}` : ""}
                           </p>

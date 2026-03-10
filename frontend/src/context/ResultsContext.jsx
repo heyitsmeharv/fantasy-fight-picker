@@ -1,133 +1,158 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { upcomingEvents } from "../data/mockData";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import * as resultsApi from "../api/results";
 
-const STORAGE_KEY = "fantasy-ufc-results-v2";
 const ResultsContext = createContext(null);
 
-const loadInitialOverrides = () => {
-  if (typeof window === "undefined") {
-    return {
-      results: {},
-      statuses: {},
-    };
+const replaceEventInList = (events, nextEvent) => {
+  const index = events.findIndex((event) => event.id === nextEvent.id);
+
+  if (index === -1) {
+    return [...events, nextEvent];
   }
 
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-
-    if (!stored) {
-      return {
-        results: {},
-        statuses: {},
-      };
-    }
-
-    const parsed = JSON.parse(stored);
-
-    return {
-      results: parsed?.results && typeof parsed.results === "object" ? parsed.results : {},
-      statuses: parsed?.statuses && typeof parsed.statuses === "object" ? parsed.statuses : {},
-    };
-  } catch {
-    return {
-      results: {},
-      statuses: {},
-    };
-  }
-};
-
-const mergeEventsWithOverrides = (events, overrides) => {
-  return events.map((event) => {
-    const statusOverride = overrides.statuses?.[event.id];
-    const mergedStatus = statusOverride ?? event.status;
-
-    if (!Array.isArray(event.fights)) {
-      return {
-        ...event,
-        status: mergedStatus,
-      };
-    }
-
-    return {
-      ...event,
-      status: mergedStatus,
-      fights: event.fights.map((fight) => ({
-        ...fight,
-        result: overrides.results?.[event.id]?.[fight.id] ?? fight.result ?? null,
-      })),
-    };
-  });
+  const next = [...events];
+  next[index] = nextEvent;
+  return next;
 };
 
 export const ResultsProvider = ({ children }) => {
-  const [overrides, setOverrides] = useState(loadInitialOverrides);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const refreshEvents = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const nextEvents = await resultsApi.fetchAllEventsWithDetails();
+      setEvents(nextEvents);
+      setError(null);
+    } catch (nextError) {
+      console.error("ResultsContext refreshEvents error", nextError);
+      setEvents([]);
+      setError(nextError);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
+    refreshEvents();
+  }, [refreshEvents]);
+
+  const refreshEvent = useCallback(async (eventId) => {
+    const nextEvent = await resultsApi.fetchEventById(eventId);
+
+    if (!nextEvent) {
+      return null;
     }
-  }, [overrides]);
 
-  const events = useMemo(() => {
-    return mergeEventsWithOverrides(upcomingEvents, overrides);
-  }, [overrides]);
+    setEvents((current) => replaceEventInList(current, nextEvent));
+    return nextEvent;
+  }, []);
 
-  const updateFightResult = (eventId, fightId, result) => {
-    setOverrides((current) => ({
-      ...current,
-      results: {
-        ...current.results,
-        [eventId]: {
-          ...(current.results?.[eventId] || {}),
-          [fightId]: result,
-        },
-      },
-    }));
-  };
+  const updateFightResult = useCallback(async (eventId, fightId, result) => {
+    const response = await resultsApi.updateFightResult(eventId, fightId, result);
 
-  const clearFightResult = (eventId, fightId) => {
-    setOverrides((current) => {
-      if (!current.results?.[eventId]?.[fightId]) {
-        return current;
-      }
+    setEvents((current) =>
+      current.map((event) => {
+        if (event.id !== eventId) {
+          return event;
+        }
 
-      const nextEventResults = { ...(current.results?.[eventId] || {}) };
-      delete nextEventResults[fightId];
+        return {
+          ...event,
+          fights: (event.fights || []).map((fight) =>
+            fight.id === fightId
+              ? {
+                  ...fight,
+                  result: response?.fight?.result ?? result,
+                }
+              : fight
+          ),
+        };
+      })
+    );
 
-      return {
-        ...current,
-        results: {
-          ...current.results,
-          ...(Object.keys(nextEventResults).length > 0
-            ? { [eventId]: nextEventResults }
-            : {}),
-        },
-      };
-    });
-  };
+    return response?.fight ?? null;
+  }, []);
 
-  const updateEventStatus = (eventId, status) => {
-    setOverrides((current) => ({
-      ...current,
-      statuses: {
-        ...current.statuses,
-        [eventId]: String(status).toLowerCase(),
-      },
-    }));
-  };
+  const clearFightResult = useCallback(async (eventId, fightId) => {
+    await resultsApi.clearFightResult(eventId, fightId);
 
-  return (
-    <ResultsContext.Provider
-      value={{
-        events,
-        updateFightResult,
-        clearFightResult,
-        updateEventStatus,
-      }}
-    >
-      {children}
-    </ResultsContext.Provider>
+    setEvents((current) =>
+      current.map((event) => {
+        if (event.id !== eventId) {
+          return event;
+        }
+
+        return {
+          ...event,
+          fights: (event.fights || []).map((fight) =>
+            fight.id === fightId
+              ? {
+                  ...fight,
+                  result: null,
+                }
+              : fight
+          ),
+        };
+      })
+    );
+  }, []);
+
+  const updateEventStatus = useCallback(async (eventId, status) => {
+    const nextEvent = await resultsApi.updateEventStatus(eventId, status);
+
+    if (!nextEvent) {
+      return null;
+    }
+
+    setEvents((current) =>
+      current.map((event) =>
+        event.id === eventId
+          ? {
+              ...event,
+              status: nextEvent.status,
+            }
+          : event
+      )
+    );
+
+    return nextEvent;
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      events,
+      loading,
+      error,
+      refreshEvents,
+      refreshEvent,
+      updateFightResult,
+      clearFightResult,
+      updateEventStatus,
+    }),
+    [
+      events,
+      loading,
+      error,
+      refreshEvents,
+      refreshEvent,
+      updateFightResult,
+      clearFightResult,
+      updateEventStatus,
+    ]
   );
+
+  return <ResultsContext.Provider value={value}>{children}</ResultsContext.Provider>;
 };
 
 export const useResults = () => {

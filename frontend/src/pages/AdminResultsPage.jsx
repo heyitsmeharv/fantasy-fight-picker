@@ -6,8 +6,9 @@ import SectionHeading from "../components/common/SectionHeading";
 import { useResults } from "../context/ResultsContext";
 import { useToast } from "../context/ToastContext";
 import { isEventLocked } from "../utils/event";
+import { getOfficialResultLabel } from "../utils/scoring";
 
-const methodOptions = ["Decision", "KO/TKO", "Submission"];
+const methodOptions = ["Decision", "KO/TKO", "Submission", "Disqualification"];
 
 const AdminResultsPage = () => {
   const { events, updateFightResult, clearFightResult, updateEventStatus } = useResults();
@@ -25,23 +26,69 @@ const AdminResultsPage = () => {
 
   const locked = isEventLocked(selectedEvent);
 
-  const handleWinnerChange = (fight, fighter) => {
-    updateFightResult(selectedEvent.id, fight.id, {
-      winnerId: fighter.id,
-      winnerName: fighter.name,
-      method: fight.result?.method ?? null,
-      round: fight.result?.round ?? null,
-    });
+  const handleOutcomeChange = (fight, outcome, fighter = null) => {
+    const existingResult = fight.result || {};
 
-    showToast({
-      title: "Winner updated",
-      description: `${fighter.name} set as the official winner.`,
-      variant: "success",
-    });
+    if (outcome === "draw") {
+      updateFightResult(selectedEvent.id, fight.id, {
+        outcome: "draw",
+        winnerId: null,
+        winnerName: "Draw",
+        method:
+          existingResult.method && existingResult.method !== "Disqualification"
+            ? existingResult.method
+            : "Decision",
+        round: existingResult.round ?? null,
+      });
+
+      showToast({
+        title: "Result updated",
+        description: `${fight.left.name} vs ${fight.right.name} set to draw.`,
+        variant: "success",
+      });
+
+      return;
+    }
+
+    if (outcome === "disqualification" && fighter) {
+      updateFightResult(selectedEvent.id, fight.id, {
+        outcome: "disqualification",
+        winnerId: fighter.id,
+        winnerName: fighter.name,
+        method: "Disqualification",
+        round: existingResult.round ?? null,
+      });
+
+      showToast({
+        title: "Result updated",
+        description: `${fighter.name} wins by disqualification.`,
+        variant: "success",
+      });
+
+      return;
+    }
+
+    if (outcome === "win" && fighter) {
+      updateFightResult(selectedEvent.id, fight.id, {
+        outcome: "win",
+        winnerId: fighter.id,
+        winnerName: fighter.name,
+        method:
+          existingResult.method === "Disqualification" ? null : existingResult.method ?? null,
+        round: existingResult.round ?? null,
+      });
+
+      showToast({
+        title: "Winner updated",
+        description: `${fighter.name} set as the official winner.`,
+        variant: "success",
+      });
+    }
   };
 
   const handleMethodChange = (fight, method) => {
     updateFightResult(selectedEvent.id, fight.id, {
+      outcome: fight.result?.outcome ?? "win",
       winnerId: fight.result?.winnerId ?? null,
       winnerName: fight.result?.winnerName ?? null,
       method,
@@ -56,6 +103,7 @@ const AdminResultsPage = () => {
 
   const handleRoundChange = (fight, round) => {
     updateFightResult(selectedEvent.id, fight.id, {
+      outcome: fight.result?.outcome ?? "win",
       winnerId: fight.result?.winnerId ?? null,
       winnerName: fight.result?.winnerName ?? null,
       method: fight.result?.method ?? null,
@@ -195,6 +243,10 @@ const AdminResultsPage = () => {
         {selectedEvent.fights.map((fight) => {
           const maxRounds = fight.slotLabel === "Main Event" ? 5 : 3;
           const officialResult = fight.result;
+          const availableMethodOptions =
+            officialResult?.outcome === "disqualification"
+              ? ["Disqualification"]
+              : methodOptions.filter((method) => method !== "Disqualification");
 
           return (
             <Card key={fight.id} className="border-white/10 bg-zinc-950/90 text-white">
@@ -223,10 +275,13 @@ const AdminResultsPage = () => {
 
               <CardContent className="space-y-6">
                 <div>
-                  <p className="mb-3 text-sm font-medium text-white">Winner</p>
+                  <p className="mb-3 text-sm font-medium text-white">Official outcome</p>
+
                   <div className="flex flex-wrap gap-3">
                     {[fight.left, fight.right].map((fighter) => {
-                      const active = officialResult?.winnerId === fighter.id;
+                      const active =
+                        officialResult?.outcome === "win" &&
+                        officialResult?.winnerId === fighter.id;
 
                       return (
                         <Button
@@ -237,19 +292,67 @@ const AdminResultsPage = () => {
                               ? "rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
                               : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
                           }
-                          onClick={() => handleWinnerChange(fight, fighter)}
+                          onClick={() => handleOutcomeChange(fight, "win", fighter)}
                         >
                           {fighter.name}
                         </Button>
                       );
                     })}
+
+                    <Button
+                      variant={officialResult?.outcome === "draw" ? "default" : "outline"}
+                      className={
+                        officialResult?.outcome === "draw"
+                          ? "rounded-full bg-amber-600 text-white hover:bg-amber-500"
+                          : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                      }
+                      onClick={() => handleOutcomeChange(fight, "draw")}
+                    >
+                      Draw
+                    </Button>
+
+                    <Button
+                      variant={
+                        officialResult?.outcome === "disqualification" &&
+                        officialResult?.winnerId === fight.left.id
+                          ? "default"
+                          : "outline"
+                      }
+                      className={
+                        officialResult?.outcome === "disqualification" &&
+                        officialResult?.winnerId === fight.left.id
+                          ? "rounded-full bg-amber-600 text-white hover:bg-amber-500"
+                          : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                      }
+                      onClick={() => handleOutcomeChange(fight, "disqualification", fight.left)}
+                    >
+                      DQ: {fight.left.name}
+                    </Button>
+
+                    <Button
+                      variant={
+                        officialResult?.outcome === "disqualification" &&
+                        officialResult?.winnerId === fight.right.id
+                          ? "default"
+                          : "outline"
+                      }
+                      className={
+                        officialResult?.outcome === "disqualification" &&
+                        officialResult?.winnerId === fight.right.id
+                          ? "rounded-full bg-amber-600 text-white hover:bg-amber-500"
+                          : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                      }
+                      onClick={() => handleOutcomeChange(fight, "disqualification", fight.right)}
+                    >
+                      DQ: {fight.right.name}
+                    </Button>
                   </div>
                 </div>
 
                 <div>
                   <p className="mb-3 text-sm font-medium text-white">Method</p>
                   <div className="flex flex-wrap gap-3">
-                    {methodOptions.map((method) => {
+                    {availableMethodOptions.map((method) => {
                       const active = officialResult?.method === method;
 
                       return (
@@ -300,7 +403,7 @@ const AdminResultsPage = () => {
                       Official result
                     </p>
                     <p className="mt-1 text-base font-semibold text-white">
-                      {officialResult.winnerName || "Winner not set"}
+                      {getOfficialResultLabel(officialResult)}
                     </p>
                     <p className="mt-1 text-sm text-slate-300">
                       {[officialResult.method, officialResult.round ? `Round ${officialResult.round}` : null]

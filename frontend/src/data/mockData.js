@@ -38,10 +38,11 @@ export const upcomingEvents = [
           imageUrl: "",
         },
         result: {
-          winnerId: "alex-volk",
-          winnerName: "Alexander Volkanovski",
+          outcome: "draw",
+          winnerId: null,
+          winnerName: "Draw",
           method: "Decision",
-          round: 5,
+          round: null,
         },
       },
       {
@@ -72,10 +73,11 @@ export const upcomingEvents = [
           imageUrl: "",
         },
         result: {
+          outcome: "disqualification",
           winnerId: "gaethje",
           winnerName: "Justin Gaethje",
-          method: "KO/TKO",
-          round: 2,
+          method: "Disqualification",
+          round: 3
         },
       },
       {
@@ -106,6 +108,7 @@ export const upcomingEvents = [
           imageUrl: "",
         },
         result: {
+          outcome: "win",
           winnerId: "dvalishvili",
           winnerName: "Merab Dvalishvili",
           method: "Decision",
@@ -140,6 +143,7 @@ export const upcomingEvents = [
           imageUrl: "",
         },
         result: {
+          outcome: "win",
           winnerId: "rakhmonov",
           winnerName: "Shavkat Rakhmonov",
           method: "Submission",
@@ -174,6 +178,7 @@ export const upcomingEvents = [
           imageUrl: "",
         },
         result: {
+          outcome: "win",
           winnerId: "whittaker",
           winnerName: "Robert Whittaker",
           method: "Decision",

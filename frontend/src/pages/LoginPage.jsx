@@ -8,26 +8,55 @@ import { useToast } from "../context/ToastContext";
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, loading } = useAuth();
   const { showToast } = useToast();
 
   const [form, setForm] = useState({
-    email: "",
+    email: location.state?.email || "",
+    password: "",
   });
 
-  const redirectPath = location.state?.from || "/my-picks";
+  const redirectPath =
+    typeof location.state?.from === "string"
+      ? location.state.from
+      : location.state?.from?.pathname || "/my-picks";
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const nextUser = login(form);
 
-    showToast({
-      title: "Logged in",
-      description: `Welcome back, ${nextUser.name}.`,
-      variant: "success",
-    });
+    try {
+      const nextUser = await login(form);
 
-    navigate(redirectPath);
+      showToast({
+        title: "Logged in",
+        description: `Welcome back, ${nextUser.name}.`,
+        variant: "success",
+      });
+
+      navigate(redirectPath);
+    } catch (error) {
+      if (error.code === "UserNotConfirmedException") {
+        showToast({
+          title: "Confirm your account",
+          description: "Enter the code from your email to finish sign-up.",
+          variant: "danger",
+        });
+
+        navigate("/signup", {
+          state: {
+            mode: "confirm",
+            email: form.email,
+          },
+        });
+        return;
+      }
+
+      showToast({
+        title: "Login failed",
+        description: error.message,
+        variant: "danger",
+      });
+    }
   };
 
   return (
@@ -38,7 +67,7 @@ const LoginPage = () => {
             Log in
           </CardTitle>
           <p className="text-sm text-slate-400">
-            Mock auth for now. We’ll swap this for Cognito later.
+            Sign in with your Fantasy UFC account.
           </p>
         </CardHeader>
 
@@ -51,6 +80,7 @@ const LoginPage = () => {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={form.email}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, email: event.target.value }))
@@ -60,11 +90,29 @@ const LoginPage = () => {
               />
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                value={form.password}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, password: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white outline-none transition focus:border-[#d20a11]/60"
+                placeholder="••••••••"
+              />
+            </div>
+
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
+              disabled={loading}
+              className="w-full rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e] disabled:opacity-70"
             >
-              Log in
+              {loading ? "Logging in..." : "Log in"}
             </Button>
           </form>
 

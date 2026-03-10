@@ -13,7 +13,13 @@ import {
   calculateOverallTotals,
   calculatePickPoints,
   getOfficialResult,
+  getOfficialResultLabel,
 } from "../utils/scoring";
+
+const smallPillClass = "text-[10px] leading-none tracking-[0.18em]";
+
+const scorePillBaseClass =
+  "inline-flex h-8 min-w-[82px] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 font-semibold uppercase leading-none text-[11px] tracking-[0.14em]";
 
 const getPlayerEventCard = (cards, eventId) => {
   return cards.find((card) => card.eventId === eventId) || null;
@@ -24,16 +30,13 @@ const getPickForFight = (card, fightId) => {
 };
 
 const getScorePillClass = (score, otherScore, isResolved = true) => {
-  const baseClass =
-    "inline-flex min-w-[88px] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold leading-none";
-
   if (!isResolved || score === otherScore) {
-    return `border border-white/10 bg-white/5 text-white ${baseClass}`;
+    return `border border-white/10 bg-white/5 text-white ${scorePillBaseClass}`;
   }
 
   return score > otherScore
-    ? `border border-emerald-500/20 bg-emerald-500/10 text-emerald-200 ${baseClass}`
-    : `border border-[#d20a11]/20 bg-[#d20a11]/10 text-red-200 ${baseClass}`;
+    ? `border border-emerald-500/20 bg-emerald-500/10 text-emerald-200 ${scorePillBaseClass}`
+    : `border border-[#d20a11]/20 bg-[#d20a11]/10 text-red-200 ${scorePillBaseClass}`;
 };
 
 const buildLeaderboardEntries = (events, currentUserName, currentUserCards) => {
@@ -122,7 +125,9 @@ const LeaguePage = () => {
     resultEvents.find((event) => event.id === selectedEventId) || resultEvents[0] || null;
 
   const eventHasResults = selectedEvent
-    ? selectedEvent.fights.some((fight) => Boolean(fight.result))
+    ? selectedEvent.fights.some((fight) =>
+        Boolean(getOfficialResult(events, selectedEvent.id, fight.id))
+      )
     : false;
 
   const yourEventCard = selectedEvent
@@ -251,9 +256,7 @@ const LeaguePage = () => {
                         {entry.name}
                         {entry.isCurrentUser ? " (You)" : ""}
                       </p>
-                      <p className="text-sm text-slate-400">
-                        {entry.accuracy}% accuracy
-                      </p>
+                      <p className="text-sm text-slate-400">{entry.accuracy}% accuracy</p>
                     </div>
                   </div>
 
@@ -336,7 +339,7 @@ const LeaguePage = () => {
                         eventHasResults
                       )}
                     >
-                      {currentUserName}: {yourEventTotals.totalPoints} pts
+                      {currentUserName}: {yourEventTotals.totalPoints} PTS
                     </Badge>
 
                     <Badge
@@ -346,7 +349,7 @@ const LeaguePage = () => {
                         eventHasResults
                       )}
                     >
-                      {selectedOpponent.name}: {opponentEventTotals.totalPoints} pts
+                      {selectedOpponent.name}: {opponentEventTotals.totalPoints} PTS
                     </Badge>
                   </div>
                 </div>
@@ -376,11 +379,15 @@ const LeaguePage = () => {
                         </div>
 
                         {officialResult ? (
-                          <Badge className="border border-white/10 bg-white/5 text-white">
-                            Result: {officialResult.winnerName}
+                          <Badge
+                            className={`${smallPillClass} border border-white/10 bg-white/5 text-white`}
+                          >
+                            Result: {getOfficialResultLabel(officialResult)}
                           </Badge>
                         ) : (
-                          <Badge className="border border-emerald-500/20 bg-emerald-500/15 text-emerald-200">
+                          <Badge
+                            className={`${smallPillClass} border border-emerald-500/20 bg-emerald-500/15 text-emerald-200`}
+                          >
                             Result pending
                           </Badge>
                         )}
@@ -414,10 +421,10 @@ const LeaguePage = () => {
                               className={
                                 officialResult
                                   ? getScorePillClass(yourPoints, opponentPoints, true)
-                                  : "inline-flex min-w-[88px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold leading-none text-white"
+                                  : `border border-white/10 bg-white/5 text-white ${scorePillBaseClass}`
                               }
                             >
-                              {officialResult ? `${yourPoints} pts` : "Pending"}
+                              {officialResult ? `${yourPoints} PTS` : "PENDING"}
                             </Badge>
                           </div>
                         </div>
@@ -449,10 +456,10 @@ const LeaguePage = () => {
                               className={
                                 officialResult
                                   ? getScorePillClass(opponentPoints, yourPoints, true)
-                                  : "inline-flex min-w-[88px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold leading-none text-white"
+                                  : `border border-white/10 bg-white/5 text-white ${scorePillBaseClass}`
                               }
                             >
-                              {officialResult ? `${opponentPoints} pts` : "Pending"}
+                              {officialResult ? `${opponentPoints} PTS` : "PENDING"}
                             </Badge>
                           </div>
                         </div>

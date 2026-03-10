@@ -34,19 +34,19 @@ const EventPage = () => {
 
   const statusStamp = locked
     ? {
-        icon: Lock,
-        title: "Locked",
-        description: "Results are live and picks are now read-only.",
-        className: "border-[#d20a11]/20 bg-[#d20a11]/10 text-white",
-        iconClassName: "text-[#d20a11]",
-      }
+      icon: Lock,
+      title: "Locked",
+      description: "Results are live and picks are now read-only.",
+      className: "border-[#d20a11]/20 bg-[#d20a11]/10 text-white",
+      iconClassName: "text-[#d20a11]",
+    }
     : {
-        icon: Unlock,
-        title: "Open",
-        description: "You can still make and edit picks before lock.",
-        className: "border-emerald-500/20 bg-emerald-500/10 text-white",
-        iconClassName: "text-emerald-400",
-      };
+      icon: Unlock,
+      title: "Open",
+      description: "You can still make and edit picks before lock.",
+      className: "border-emerald-500/20 bg-emerald-500/10 text-white",
+      iconClassName: "text-emerald-400",
+    };
 
   const StatusStampIcon = statusStamp.icon;
 
@@ -84,6 +84,28 @@ const EventPage = () => {
 
   const openFighter = (fighter) => navigate(`/fighters/${fighter.id}`);
   const openCompare = (fight) => navigate(`/compare/${fight.id}`);
+
+  const formatDateTimeDisplay = (value) => {
+    if (!value) {
+      return "TBC";
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZoneName: "short",
+    }).format(parsed);
+  };
 
   const handlePick = (fightId, fighterId) => {
     if (locked) {
@@ -251,7 +273,7 @@ const EventPage = () => {
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                       Lock time
                     </p>
-                    <p className="mt-1 font-semibold text-white">{event.lockTime}</p>
+                    <p className="mt-1 font-semibold text-white">{formatDateTimeDisplay(event.lockTime)}</p>
                   </div>
                 </div>
               </div>

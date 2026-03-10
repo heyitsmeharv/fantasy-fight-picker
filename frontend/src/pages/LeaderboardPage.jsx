@@ -1,90 +1,54 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Swords } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
-import { usePicks } from "../context/PicksContext";
-import { useAuth } from "../context/AuthContext";
-import { useResults } from "../context/ResultsContext";
-import { communityPlayers, communityPickCards } from "../data/communityMockData";
-import { calculateEventTotals, calculateOverallTotals } from "../utils/scoring";
+import { fetchLeaderboard } from "../api/results";
 
 const LeaderboardPage = () => {
   const navigate = useNavigate();
-  const { pickCards } = usePicks();
-  const { user } = useAuth();
-  const { events } = useResults();
+  const [leaderboardEntries, setLeaderboardEntries] = useState([]);
+  const [recentEventReturns, setRecentEventReturns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const currentUserName = user?.name || "You";
+  useEffect(() => {
+    let cancelled = false;
 
-  const leaderboardEntries = useMemo(() => {
-    const communityEntries = communityPlayers.map((player) => {
-      const cards = communityPickCards[player.id] || [];
-      const totals = calculateOverallTotals(cards, events);
+    const load = async () => {
+      setLoading(true);
 
-      return {
-        id: player.id,
-        name: player.name,
-        points: totals.totalPoints,
-        accuracy: totals.scoredPicks
-          ? Math.round((totals.correctPicks / totals.scoredPicks) * 100)
-          : 0,
-        correctPicks: totals.correctPicks,
-        scoredPicks: totals.scoredPicks,
-        isCurrentUser: false,
-      };
-    });
+      try {
+        const response = await fetchLeaderboard();
 
-    const currentUserTotals = calculateOverallTotals(pickCards, events);
+        if (!cancelled) {
+          setLeaderboardEntries(response?.leaderboard || []);
+          setRecentEventReturns(response?.recentEventReturns || []);
+          setError(null);
+        }
+      } catch (nextError) {
+        console.error("LeaderboardPage load error", nextError);
 
-    const currentUserEntry = {
-      id: "current-user",
-      name: currentUserName,
-      points: currentUserTotals.totalPoints,
-      accuracy: currentUserTotals.scoredPicks
-        ? Math.round((currentUserTotals.correctPicks / currentUserTotals.scoredPicks) * 100)
-        : 0,
-      correctPicks: currentUserTotals.correctPicks,
-      scoredPicks: currentUserTotals.scoredPicks,
-      isCurrentUser: true,
+        if (!cancelled) {
+          setLeaderboardEntries([]);
+          setRecentEventReturns([]);
+          setError(nextError);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     };
 
-    return [...communityEntries.filter((entry) => entry.name !== currentUserName), currentUserEntry]
-      .sort((a, b) => {
-        if (b.points !== a.points) {
-          return b.points - a.points;
-        }
+    load();
 
-        if (b.accuracy !== a.accuracy) {
-          return b.accuracy - a.accuracy;
-        }
-
-        return a.name.localeCompare(b.name);
-      })
-      .map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-      }));
-  }, [pickCards, events, currentUserName]);
-
-  const recentEventReturns = useMemo(() => {
-    return pickCards
-      .map((card) => {
-        const totals = calculateEventTotals(card, events);
-
-        return {
-          eventId: card.eventId,
-          eventName: totals.event?.name || card.eventId,
-          points: totals.totalPoints,
-          correctPicks: totals.correctPicks,
-          scoredPicks: totals.scoredPicks,
-          status: totals.status,
-        };
-      })
-      .sort((a, b) => b.points - a.points);
-  }, [pickCards, events]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -128,43 +92,42 @@ const LeaderboardPage = () => {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {leaderboardEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className={`rounded-2xl border p-4 ${entry.isCurrentUser
-                  ? "border-emerald-500/20 bg-emerald-500/10"
-                  : "border-white/10 bg-white/[0.03]"
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-full border font-semibold ${entry.isCurrentUser
-                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-                        : "border-white/10 bg-[#d20a11]/15 text-white"
-                        }`}
-                    >
-                      {entry.rank}
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-white">
-                        {entry.name}
-                        {entry.isCurrentUser ? " (You)" : ""}
-                      </p>
-                      <p className="text-sm text-slate-400">
-                        {entry.accuracy}% accuracy
-                        {entry.scoredPicks > 0
-                          ? ` • ${entry.correctPicks}/${entry.scoredPicks} correct`
-                          : ""}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="text-xl font-semibold">{entry.points}</p>
-                </div>
+            {loading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-slate-400">
+                Loading leaderboard...
               </div>
-            ))}
+            ) : leaderboardEntries.length > 0 ? (
+              leaderboardEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#d20a11]/15 font-semibold text-white">
+                        {entry.rank}
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-white">{entry.name}</p>
+                        <p className="text-sm text-slate-400">
+                          {entry.accuracy}% accuracy
+                          {entry.scoredPicks > 0
+                            ? ` • ${entry.correctPicks}/${entry.scoredPicks} correct`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xl font-semibold">{entry.points}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-slate-400">
+                {error ? "Could not load leaderboard." : "No leaderboard data yet."}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -200,6 +163,7 @@ const LeaderboardPage = () => {
                       >
                         {result.status}
                       </Badge>
+
                       <Badge
                         className={
                           result.points > 0
@@ -215,7 +179,11 @@ const LeaderboardPage = () => {
               ))
             ) : (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-slate-400">
-                No event returns yet. Make some picks and settle results from the admin page.
+                {loading
+                  ? "Loading recent returns..."
+                  : error
+                    ? "Could not load recent event returns."
+                    : "No event returns yet."}
               </div>
             )}
           </CardContent>

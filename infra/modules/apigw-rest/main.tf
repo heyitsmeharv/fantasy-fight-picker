@@ -1,0 +1,550 @@
+resource "aws_cloudwatch_log_group" "api_access" {
+  name              = local.api_access_log_name
+  retention_in_days = var.api_log_retention_in_days
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    Name        = local.api_access_log_name
+  }
+}
+
+resource "aws_iam_role" "apigw_cloudwatch" {
+  name = "${local.prefix}-apigw-cloudwatch-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ApiGatewayAssumeRole"
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    Name        = "${local.prefix}-apigw-cloudwatch-role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "apigw_cloudwatch" {
+  role       = aws_iam_role.apigw_cloudwatch.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_api_gateway_account" "this" {
+  cloudwatch_role_arn = aws_iam_role.apigw_cloudwatch.arn
+}
+
+resource "aws_api_gateway_rest_api" "this" {
+  name        = "${local.prefix}-api"
+  description = "Fantasy UFC REST API"
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    Name        = "${local.prefix}-api"
+  }
+}
+
+resource "aws_api_gateway_authorizer" "cognito" {
+  name          = "${local.prefix}-cognito-authorizer"
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  type          = "COGNITO_USER_POOLS"
+  provider_arns = [var.cognito_user_pool_arn]
+}
+
+resource "aws_api_gateway_resource" "events" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "events"
+}
+
+resource "aws_api_gateway_resource" "event_id" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.events.id
+  path_part   = "{eventId}"
+}
+
+resource "aws_api_gateway_resource" "picks" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.event_id.id
+  path_part   = "picks"
+}
+
+resource "aws_api_gateway_resource" "me" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.picks.id
+  path_part   = "me"
+}
+
+resource "aws_api_gateway_resource" "leaderboard" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "leaderboard"
+}
+
+resource "aws_api_gateway_resource" "league" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "league"
+}
+
+resource "aws_api_gateway_resource" "admin" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "admin"
+}
+
+resource "aws_api_gateway_resource" "admin_events" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.admin.id
+  path_part   = "events"
+}
+
+resource "aws_api_gateway_resource" "admin_event_id" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.admin_events.id
+  path_part   = "{eventId}"
+}
+
+resource "aws_api_gateway_resource" "status" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.admin_event_id.id
+  path_part   = "status"
+}
+
+resource "aws_api_gateway_resource" "fights" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.admin_event_id.id
+  path_part   = "fights"
+}
+
+resource "aws_api_gateway_resource" "fight_id" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.fights.id
+  path_part   = "{fightId}"
+}
+
+resource "aws_api_gateway_resource" "result" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.fight_id.id
+  path_part   = "result"
+}
+
+resource "aws_api_gateway_method" "get_events" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.events.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "get_events" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.events.id
+  http_method             = aws_api_gateway_method.get_events.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["get_events"]
+}
+
+resource "aws_api_gateway_method" "get_event_by_id" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.event_id.id
+  http_method   = "GET"
+  authorization = "NONE"
+
+  request_parameters = {
+    "method.request.path.eventId" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "get_event_by_id" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.event_id.id
+  http_method             = aws_api_gateway_method.get_event_by_id.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["get_event_by_id"]
+}
+
+resource "aws_api_gateway_method" "get_my_event_picks" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.me.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+
+  request_parameters = {
+    "method.request.path.eventId" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "get_my_event_picks" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.me.id
+  http_method             = aws_api_gateway_method.get_my_event_picks.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["get_my_event_picks"]
+}
+
+resource "aws_api_gateway_method" "save_my_event_picks" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.me.id
+  http_method   = "PUT"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+
+  request_parameters = {
+    "method.request.path.eventId" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "save_my_event_picks" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.me.id
+  http_method             = aws_api_gateway_method.save_my_event_picks.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["save_my_event_picks"]
+}
+
+resource "aws_api_gateway_method" "get_leaderboard" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.leaderboard.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "get_leaderboard" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.leaderboard.id
+  http_method             = aws_api_gateway_method.get_leaderboard.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["get_leaderboard"]
+}
+
+resource "aws_api_gateway_method" "get_league_view" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.league.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+}
+
+resource "aws_api_gateway_integration" "get_league_view" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.league.id
+  http_method             = aws_api_gateway_method.get_league_view.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["get_league_view"]
+}
+
+resource "aws_api_gateway_method" "admin_update_event_status" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.status.id
+  http_method   = "PATCH"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+
+  request_parameters = {
+    "method.request.path.eventId" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "admin_update_event_status" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.status.id
+  http_method             = aws_api_gateway_method.admin_update_event_status.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["admin_update_event_status"]
+}
+
+resource "aws_api_gateway_method" "admin_update_fight_result" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.result.id
+  http_method   = "PATCH"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+
+  request_parameters = {
+    "method.request.path.eventId" = true
+    "method.request.path.fightId" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "admin_update_fight_result" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.result.id
+  http_method             = aws_api_gateway_method.admin_update_fight_result.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["admin_update_fight_result"]
+}
+
+resource "aws_api_gateway_method" "options" {
+  for_each = local.cors_resources
+
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = each.value
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "options" {
+  for_each = local.cors_resources
+
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = each.value
+  http_method = aws_api_gateway_method.options[each.key].http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "options_200" {
+  for_each = local.cors_resources
+
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = each.value
+  http_method = aws_api_gateway_method.options[each.key].http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "options_200" {
+  for_each = local.cors_resources
+
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = each.value
+  http_method = aws_api_gateway_method.options[each.key].http_method
+  status_code = aws_api_gateway_method_response.options_200[each.key].status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = "'${var.frontend_origin}'"
+    "method.response.header.Access-Control-Allow-Headers" = "'${var.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'${var.cors_allow_methods}'"
+  }
+
+  depends_on = [
+    aws_api_gateway_integration.options
+  ]
+}
+
+resource "aws_api_gateway_gateway_response" "default_4xx" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  response_type = "DEFAULT_4XX"
+
+  response_parameters = {
+    "gatewayresponse.header.Access-Control-Allow-Origin"  = "'${var.frontend_origin}'"
+    "gatewayresponse.header.Access-Control-Allow-Headers" = "'${var.cors_allow_headers}'"
+    "gatewayresponse.header.Access-Control-Allow-Methods" = "'${var.cors_allow_methods}'"
+  }
+}
+
+resource "aws_api_gateway_gateway_response" "default_5xx" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  response_type = "DEFAULT_5XX"
+
+  response_parameters = {
+    "gatewayresponse.header.Access-Control-Allow-Origin"  = "'${var.frontend_origin}'"
+    "gatewayresponse.header.Access-Control-Allow-Headers" = "'${var.cors_allow_headers}'"
+    "gatewayresponse.header.Access-Control-Allow-Methods" = "'${var.cors_allow_methods}'"
+  }
+}
+
+resource "aws_lambda_permission" "get_events" {
+  statement_id  = "AllowApiGatewayInvokeGetEvents"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get_events"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "get_event_by_id" {
+  statement_id  = "AllowApiGatewayInvokeGetEventById"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get_event_by_id"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "get_my_event_picks" {
+  statement_id  = "AllowApiGatewayInvokeGetMyEventPicks"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get_my_event_picks"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "save_my_event_picks" {
+  statement_id  = "AllowApiGatewayInvokeSaveMyEventPicks"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["save_my_event_picks"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "get_leaderboard" {
+  statement_id  = "AllowApiGatewayInvokeGetLeaderboard"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get_leaderboard"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "get_league_view" {
+  statement_id  = "AllowApiGatewayInvokeGetLeagueView"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get_league_view"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "admin_update_event_status" {
+  statement_id  = "AllowApiGatewayInvokeAdminUpdateEventStatus"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["admin_update_event_status"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "admin_update_fight_result" {
+  statement_id  = "AllowApiGatewayInvokeAdminUpdateFightResult"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["admin_update_fight_result"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+resource "aws_api_gateway_deployment" "this" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+
+  triggers = {
+    redeployment = sha1(jsonencode({
+      resources = [
+        aws_api_gateway_resource.events.id,
+        aws_api_gateway_resource.event_id.id,
+        aws_api_gateway_resource.picks.id,
+        aws_api_gateway_resource.me.id,
+        aws_api_gateway_resource.leaderboard.id,
+        aws_api_gateway_resource.league.id,
+        aws_api_gateway_resource.admin.id,
+        aws_api_gateway_resource.admin_events.id,
+        aws_api_gateway_resource.admin_event_id.id,
+        aws_api_gateway_resource.status.id,
+        aws_api_gateway_resource.fights.id,
+        aws_api_gateway_resource.fight_id.id,
+        aws_api_gateway_resource.result.id
+      ]
+
+      methods = concat(
+        [
+          aws_api_gateway_method.get_events.id,
+          aws_api_gateway_method.get_event_by_id.id,
+          aws_api_gateway_method.get_my_event_picks.id,
+          aws_api_gateway_method.save_my_event_picks.id,
+          aws_api_gateway_method.get_leaderboard.id,
+          aws_api_gateway_method.get_league_view.id,
+          aws_api_gateway_method.admin_update_event_status.id,
+          aws_api_gateway_method.admin_update_fight_result.id
+        ],
+        [for item in aws_api_gateway_method.options : item.id]
+      )
+
+      integrations = concat(
+        [
+          aws_api_gateway_integration.get_events.id,
+          aws_api_gateway_integration.get_event_by_id.id,
+          aws_api_gateway_integration.get_my_event_picks.id,
+          aws_api_gateway_integration.save_my_event_picks.id,
+          aws_api_gateway_integration.get_leaderboard.id,
+          aws_api_gateway_integration.get_league_view.id,
+          aws_api_gateway_integration.admin_update_event_status.id,
+          aws_api_gateway_integration.admin_update_fight_result.id
+        ],
+        [for item in aws_api_gateway_integration.options : item.id]
+      )
+
+      gateway_responses = [
+        aws_api_gateway_gateway_response.default_4xx.id,
+        aws_api_gateway_gateway_response.default_5xx.id
+      ]
+    }))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [
+    aws_api_gateway_integration.get_events,
+    aws_api_gateway_integration.get_event_by_id,
+    aws_api_gateway_integration.get_my_event_picks,
+    aws_api_gateway_integration.save_my_event_picks,
+    aws_api_gateway_integration.get_leaderboard,
+    aws_api_gateway_integration.get_league_view,
+    aws_api_gateway_integration.admin_update_event_status,
+    aws_api_gateway_integration.admin_update_fight_result,
+    aws_api_gateway_integration_response.options_200
+  ]
+}
+
+resource "aws_api_gateway_stage" "this" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  deployment_id = aws_api_gateway_deployment.this.id
+  stage_name    = var.stage_name
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_access.arn
+    format          = local.access_log_format
+  }
+
+  xray_tracing_enabled = true
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    Name        = "${local.prefix}-${var.stage_name}"
+  }
+
+  depends_on = [
+    aws_api_gateway_account.this
+  ]
+}
+
+resource "aws_api_gateway_method_settings" "all" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  stage_name  = aws_api_gateway_stage.this.stage_name
+  method_path = "*/*"
+
+  settings {
+    metrics_enabled = true
+    logging_level   = "INFO"
+  }
+
+  depends_on = [
+    aws_api_gateway_account.this
+  ]
+}
