@@ -194,7 +194,7 @@ const HomePage = () => {
                   <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
                     {item.label}
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{item.value}</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{item.value}</p>
                 </div>
               ))}
             </div>

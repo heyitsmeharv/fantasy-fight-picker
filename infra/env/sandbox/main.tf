@@ -94,6 +94,13 @@ module "lambda" {
       timeout     = 15
       memory_size = 256
     }
+
+    ensure_my_profile = {
+      handler     = "src/handlers/ensureMyProfile.handler"
+      description = "Upsert the authenticated user's profile in DynamoDB"
+      timeout     = 15
+      memory_size = 256
+    }
   }
 }
 

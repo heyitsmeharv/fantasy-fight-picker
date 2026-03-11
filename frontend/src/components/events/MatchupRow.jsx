@@ -27,12 +27,18 @@ const MatchupRow = ({
       ? pickedCorrectly
         ? "border-emerald-500/20 bg-emerald-500/10"
         : "border-[#d20a11]/20 bg-[#d20a11]/10"
-      : "border-[#d20a11]/20 bg-[#d20a11]/10";
+      : currentPick
+        ? "border-amber-500/20 bg-amber-500/10"
+        : "border-[#d20a11]/20 bg-[#d20a11]/10";
 
   const yourPickLabelClass =
-    currentPick && officialResult && pickedCorrectly
-      ? "text-emerald-200"
-      : "text-red-200";
+    currentPick && officialResult
+      ? pickedCorrectly
+        ? "text-emerald-200"
+        : "text-red-200"
+      : currentPick
+        ? "text-amber-200"
+        : "text-red-200";
 
   const yourPickPointsBadgeClass =
     pickedCorrectly
@@ -207,7 +213,11 @@ const MatchupRow = ({
                   >
                     {pickedCorrectly ? "Correct pick" : "Did not land"}
                   </p>
-                ) : null}
+                ) : (
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+                    Awaiting official result
+                  </p>
+                )}
               </div>
             ) : null}
 

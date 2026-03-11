@@ -10,16 +10,20 @@ import { useAuth } from "./AuthContext";
 import { useResults } from "./ResultsContext";
 import * as picksApi from "../api/picks";
 
-const STORAGE_KEY = "fantasy-ufc-picks-v5";
+const STORAGE_PREFIX = "fantasy-ufc-picks-v5";
 const PicksContext = createContext(null);
 
-const loadInitialPickCards = () => {
-  if (typeof window === "undefined") {
+const getStorageKey = (userId) => {
+  return userId ? `${STORAGE_PREFIX}:${userId}` : null;
+};
+
+const loadStoredPickCards = (storageKey) => {
+  if (typeof window === "undefined" || !storageKey) {
     return [];
   }
 
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = window.localStorage.getItem(storageKey);
 
     if (!stored) {
       return [];
@@ -29,6 +33,18 @@ const loadInitialPickCards = () => {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+};
+
+const removeStoredPickCards = (storageKey) => {
+  if (typeof window === "undefined" || !storageKey) {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(storageKey);
+  } catch {
+    // ignore storage cleanup failures
   }
 };
 
@@ -74,15 +90,42 @@ const replaceCard = (cards, nextCard) => {
 };
 
 export const PicksProvider = ({ children }) => {
-  const { isAuthenticated, hasAccessToken } = useAuth();
+  const { isAuthenticated, hasAccessToken, user } = useAuth();
   const { events } = useResults();
-  const [pickCards, setPickCards] = useState(loadInitialPickCards);
+  const userId = user?.id || user?.userId || user?.sub || null;
+  const storageKey = getStorageKey(userId);
+  const [pickCards, setPickCards] = useState([]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(pickCards));
+    if (!isAuthenticated || !hasAccessToken || !storageKey) {
+      setPickCards([]);
+      return;
     }
-  }, [pickCards]);
+
+    setPickCards(loadStoredPickCards(storageKey));
+  }, [isAuthenticated, hasAccessToken, storageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!isAuthenticated || !hasAccessToken || !storageKey) {
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(pickCards));
+  }, [pickCards, isAuthenticated, hasAccessToken, storageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!isAuthenticated || !hasAccessToken) {
+      removeStoredPickCards(STORAGE_PREFIX);
+    }
+  }, [isAuthenticated, hasAccessToken]);
 
   useEffect(() => {
     let cancelled = false;

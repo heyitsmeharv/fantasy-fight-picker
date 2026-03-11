@@ -1,4 +1,5 @@
 import client from "./client";
+import { getLeaderboardEntryName } from "../utils/profile";
 
 const inferCardType = (fight) => {
   if (fight?.cardType) {
@@ -41,6 +42,36 @@ export const normalizeEvent = (event) => {
     id: event.id ?? event.eventId,
     eventId: event.eventId ?? event.id,
     fights: Array.isArray(event.fights) ? event.fights.map(normalizeFight) : [],
+  };
+};
+
+const normalizeLeaderboardEntry = (entry) => {
+  if (!entry) {
+    return null;
+  }
+
+  const name = getLeaderboardEntryName(entry);
+
+  return {
+    ...entry,
+    displayName: name,
+    name,
+  };
+};
+
+const normalizeLeagueViewResponse = (response) => {
+  if (!response) {
+    return response;
+  }
+
+  return {
+    ...response,
+    leaderboard: (response.leaderboard || [])
+      .map(normalizeLeaderboardEntry)
+      .filter(Boolean),
+    selectedOpponent: response.selectedOpponent
+      ? normalizeLeaderboardEntry(response.selectedOpponent)
+      : null,
   };
 };
 
@@ -109,16 +140,25 @@ export const clearFightResult = async (eventId, fightId) => {
 };
 
 export const fetchLeaderboard = async () => {
-  return client.get("/leaderboard", {
+  const response = await client.get("/leaderboard", {
     auth: false,
   });
+
+  return {
+    ...response,
+    leaderboard: (response?.leaderboard || [])
+      .map(normalizeLeaderboardEntry)
+      .filter(Boolean),
+  };
 };
 
 export const fetchLeagueView = async ({ eventId, opponentId } = {}) => {
-  return client.get("/league", {
+  const response = await client.get("/league", {
     query: {
       eventId,
       opponentId,
     },
   });
+
+  return normalizeLeagueViewResponse(response);
 };

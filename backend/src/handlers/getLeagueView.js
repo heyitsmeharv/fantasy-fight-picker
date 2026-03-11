@@ -1,6 +1,7 @@
-import { GetCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { getEvents, getEventById, getFightsByEventId } from "../services/eventsService.js";
 import { ddb, TABLES } from "../services/ddb.js";
+import { getProfileNameMap } from "../services/profileService.js";
 import { getUserIdFromEvent } from "../utils/auth.js";
 import {
   badRequest,
@@ -35,30 +36,6 @@ const scanAll = async (input) => {
   return items;
 };
 
-const getProfileName = async (userId) => {
-  try {
-    const response = await ddb.send(
-      new GetCommand({
-        TableName: TABLES.PROFILES,
-        Key: { userId },
-      })
-    );
-
-    const profile = response.Item;
-
-    return (
-      profile?.displayName ||
-      profile?.name ||
-      profile?.username ||
-      profile?.email ||
-      userId
-    );
-  } catch (error) {
-    console.warn("getLeagueView profile lookup failed", { userId, error });
-    return userId;
-  }
-};
-
 export const handler = async (event) => {
   try {
     const currentUserId = getUserIdFromEvent(event);
@@ -85,10 +62,7 @@ export const handler = async (event) => {
     });
 
     const uniqueUserIds = [...new Set(pickCards.map((entry) => entry.userId).filter(Boolean))];
-    const profileNameEntries = await Promise.all(
-      uniqueUserIds.map(async (userId) => [userId, await getProfileName(userId)])
-    );
-    const profileNameMap = new Map(profileNameEntries);
+    const profileNameMap = await getProfileNameMap(uniqueUserIds);
 
     const cardsByUserId = pickCards.reduce((acc, card) => {
       const current = acc.get(card.userId) || [];
@@ -101,11 +75,13 @@ export const handler = async (event) => {
 
     for (const [userId, cards] of cardsByUserId.entries()) {
       const totals = calculateOverallTotals(cards, eventMap, fightsByEventId);
+      const displayName = profileNameMap.get(userId) || "Unknown player";
 
       leaderboardEntries.push({
         id: userId,
         userId,
-        name: profileNameMap.get(userId) || userId,
+        name: displayName,
+        displayName,
         points: totals.totalPoints,
         accuracy: totals.scoredPicks
           ? Math.round((totals.correctPicks / totals.scoredPicks) * 100)
@@ -153,6 +129,10 @@ export const handler = async (event) => {
       opponentOptions.find((entry) => entry.userId === requestedOpponentId) ||
       opponentOptions[0] ||
       null;
+
+    if (requestedOpponentId && !selectedOpponent) {
+      return badRequest("opponentId is invalid");
+    }
 
     const opponentCards = selectedOpponent
       ? cardsByUserId.get(selectedOpponent.userId) || []

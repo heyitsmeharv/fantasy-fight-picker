@@ -28,6 +28,8 @@ locals {
     fights         = aws_api_gateway_resource.fights.id
     fight_id       = aws_api_gateway_resource.fight_id.id
     result         = aws_api_gateway_resource.result.id
+    profiles       = aws_api_gateway_resource.profiles.id
+    profile_me     = aws_api_gateway_resource.profile_me.id
   }
 
   lambda_invoke_uris = {

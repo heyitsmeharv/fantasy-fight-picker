@@ -1,33 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Swords, Trophy, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
-import { usePicks } from "../context/PicksContext";
-import { useAuth } from "../context/AuthContext";
-import { useResults } from "../context/ResultsContext";
-import { communityPlayers, communityPickCards } from "../data/communityMockData";
-import {
-  calculateEventTotals,
-  calculateOverallTotals,
-  calculatePickPoints,
-  getOfficialResult,
-  getOfficialResultLabel,
-} from "../utils/scoring";
+import { fetchLeagueView } from "../api/results";
+import { getOfficialResultLabel } from "../utils/scoring";
 
 const smallPillClass = "text-[10px] leading-none tracking-[0.18em]";
 
 const scorePillBaseClass =
   "inline-flex h-8 min-w-[82px] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 font-semibold uppercase leading-none text-[11px] tracking-[0.14em]";
-
-const getPlayerEventCard = (cards, eventId) => {
-  return cards.find((card) => card.eventId === eventId) || null;
-};
-
-const getPickForFight = (card, fightId) => {
-  return card?.picks.find((pick) => pick.fightId === fightId) || null;
-};
 
 const getScorePillClass = (score, otherScore, isResolved = true) => {
   if (!isResolved || score === otherScore) {
@@ -39,137 +22,122 @@ const getScorePillClass = (score, otherScore, isResolved = true) => {
     : `border border-[#d20a11]/20 bg-[#d20a11]/10 text-red-200 ${scorePillBaseClass}`;
 };
 
-const buildLeaderboardEntries = (events, currentUserName, currentUserCards) => {
-  const communityEntries = communityPlayers.map((player) => {
-    const cards = communityPickCards[player.id] || [];
-    const totals = calculateOverallTotals(cards, events);
-
-    return {
-      id: player.id,
-      name: player.name,
-      cards,
-      points: totals.totalPoints,
-      accuracy: totals.scoredPicks
-        ? Math.round((totals.correctPicks / totals.scoredPicks) * 100)
-        : 0,
-      correctPicks: totals.correctPicks,
-      scoredPicks: totals.scoredPicks,
-      isCurrentUser: false,
-    };
-  });
-
-  const currentUserTotals = calculateOverallTotals(currentUserCards, events);
-
-  const currentUserEntry = {
-    id: "current-user",
-    name: currentUserName,
-    cards: currentUserCards,
-    points: currentUserTotals.totalPoints,
-    accuracy: currentUserTotals.scoredPicks
-      ? Math.round((currentUserTotals.correctPicks / currentUserTotals.scoredPicks) * 100)
-      : 0,
-    correctPicks: currentUserTotals.correctPicks,
-    scoredPicks: currentUserTotals.scoredPicks,
-    isCurrentUser: true,
-  };
-
-  return [...communityEntries, currentUserEntry]
-    .sort((a, b) => {
-      if (b.points !== a.points) {
-        return b.points - a.points;
-      }
-
-      if (b.accuracy !== a.accuracy) {
-        return b.accuracy - a.accuracy;
-      }
-
-      return a.name.localeCompare(b.name);
-    })
-    .map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-    }));
+const emptyTotals = {
+  totalPoints: 0,
+  correctPicks: 0,
+  scoredPicks: 0,
+  selectedCount: 0,
+  totalFights: 0,
+  accuracy: 0,
 };
 
 const LeaguePage = () => {
-  const { pickCards } = usePicks();
-  const { user } = useAuth();
-  const { events } = useResults();
+  const [leagueData, setLeagueData] = useState(null);
+  const [selectedOpponentId, setSelectedOpponentId] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const currentUserName = user?.name || "You";
+  useEffect(() => {
+    let cancelled = false;
 
-  const resultEvents = useMemo(() => {
-    return events.filter((event) => Array.isArray(event.fights));
-  }, [events]);
+    const load = async () => {
+      setLoading(true);
 
-  const leaderboardEntries = useMemo(() => {
-    return buildLeaderboardEntries(events, currentUserName, pickCards);
-  }, [events, currentUserName, pickCards]);
+      try {
+        const response = await fetchLeagueView({
+          eventId: selectedEventId || undefined,
+          opponentId: selectedOpponentId || undefined,
+        });
 
-  const opponentOptions = useMemo(() => {
-    return leaderboardEntries.filter((entry) => !entry.isCurrentUser);
-  }, [leaderboardEntries]);
+        if (cancelled) {
+          return;
+        }
 
-  const [selectedOpponentId, setSelectedOpponentId] = useState(
-    opponentOptions[0]?.id || ""
-  );
-  const [selectedEventId, setSelectedEventId] = useState(resultEvents[0]?.id || "");
+        setLeagueData(response);
+        setError(null);
 
-  const currentUserEntry = leaderboardEntries.find((entry) => entry.isCurrentUser);
-  const selectedOpponent =
-    opponentOptions.find((entry) => entry.id === selectedOpponentId) ||
-    opponentOptions[0] ||
-    null;
+        const nextEventId = response?.selectedEvent?.id || response?.selectedEvent?.eventId || "";
+        const nextOpponentId = response?.selectedOpponent?.id || response?.selectedOpponent?.userId || "";
 
-  const selectedEvent =
-    resultEvents.find((event) => event.id === selectedEventId) || resultEvents[0] || null;
+        if (nextEventId && nextEventId !== selectedEventId) {
+          setSelectedEventId(nextEventId);
+        }
 
-  const eventHasResults = selectedEvent
-    ? selectedEvent.fights.some((fight) =>
-        Boolean(getOfficialResult(events, selectedEvent.id, fight.id))
-      )
-    : false;
+        if (nextOpponentId && nextOpponentId !== selectedOpponentId) {
+          setSelectedOpponentId(nextOpponentId);
+        }
+      } catch (nextError) {
+        console.error("LeaguePage load error", nextError);
 
-  const yourEventCard = selectedEvent
-    ? getPlayerEventCard(currentUserEntry?.cards || [], selectedEvent.id)
-    : null;
+        if (!cancelled) {
+          setLeagueData(null);
+          setError(nextError);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
 
-  const opponentEventCard =
-    selectedEvent && selectedOpponent
-      ? getPlayerEventCard(selectedOpponent.cards || [], selectedEvent.id)
-      : null;
+    load();
 
-  const yourEventTotals = yourEventCard
-    ? calculateEventTotals(yourEventCard, events)
-    : {
-        totalPoints: 0,
-        correctPicks: 0,
-        scoredPicks: 0,
-        selectedCount: 0,
-      };
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEventId, selectedOpponentId]);
 
-  const opponentEventTotals = opponentEventCard
-    ? calculateEventTotals(opponentEventCard, events)
-    : {
-        totalPoints: 0,
-        correctPicks: 0,
-        scoredPicks: 0,
-        selectedCount: 0,
-      };
+  const leaderboardEntries = leagueData?.leaderboard || [];
+  const resultEvents = leagueData?.resultEvents || [];
+  const currentUserEntry = leaderboardEntries.find((entry) => entry.isCurrentUser) || null;
+  const selectedOpponent = leagueData?.selectedOpponent || null;
+  const selectedEvent = leagueData?.selectedEvent || null;
+  const comparison = leagueData?.comparison || null;
 
-  const eventWinnerLabel = (() => {
+  const yourTotals = comparison?.yourTotals || emptyTotals;
+  const opponentTotals = comparison?.opponentTotals || emptyTotals;
+  const eventHasResults = Boolean(comparison?.eventHasResults);
+  const comparisonRows = comparison?.fights || [];
+
+  const eventWinnerLabel = useMemo(() => {
     if (!selectedOpponent) {
       return "No opponent selected";
     }
 
-    if (yourEventTotals.totalPoints === opponentEventTotals.totalPoints) {
+    if (yourTotals.totalPoints === opponentTotals.totalPoints) {
       return "Level on points";
     }
 
-    return yourEventTotals.totalPoints > opponentEventTotals.totalPoints
-      ? `${currentUserName} leads`
+    return yourTotals.totalPoints > opponentTotals.totalPoints
+      ? "You lead"
       : `${selectedOpponent.name} leads`;
-  })();
+  }, [selectedOpponent, yourTotals.totalPoints, opponentTotals.totalPoints]);
+
+  if (loading && !leagueData) {
+    return (
+      <div className="space-y-6">
+        <SectionHeading eyebrow="League" title="Head-to-head and standings" />
+        <Card className="border-white/10 bg-zinc-950/90 text-white">
+          <CardContent className="p-8 text-slate-400">Loading league view...</CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <SectionHeading eyebrow="League" title="Head-to-head and standings" />
+        <Card className="border-white/10 bg-zinc-950/90 text-white">
+          <CardContent className="p-8">
+            <p className="text-2xl font-semibold">Could not load league view</p>
+            <p className="mt-2 text-slate-400">{error.message}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -232,7 +200,7 @@ const LeaguePage = () => {
           <CardContent className="space-y-4">
             {leaderboardEntries.map((entry) => (
               <div
-                key={entry.id}
+                key={entry.id || entry.userId}
                 className={`rounded-2xl border p-4 ${
                   entry.isCurrentUser
                     ? "border-emerald-500/20 bg-emerald-500/10"
@@ -256,7 +224,9 @@ const LeaguePage = () => {
                         {entry.name}
                         {entry.isCurrentUser ? " (You)" : ""}
                       </p>
-                      <p className="text-sm text-slate-400">{entry.accuracy}% accuracy</p>
+                      <p className="text-sm text-slate-400">
+                        {entry.accuracy}% accuracy
+                      </p>
                     </div>
                   </div>
 
@@ -275,40 +245,45 @@ const LeaguePage = () => {
 
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-3">
-                {opponentOptions.map((opponent) => {
-                  const active = opponent.id === selectedOpponent?.id;
+                {leaderboardEntries
+                  .filter((entry) => !entry.isCurrentUser)
+                  .map((opponent) => {
+                    const opponentId = opponent.userId || opponent.id;
+                    const active =
+                      opponentId === (selectedOpponent?.userId || selectedOpponent?.id);
 
-                  return (
-                    <Button
-                      key={opponent.id}
-                      variant={active ? "default" : "outline"}
-                      className={
-                        active
-                          ? "rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
-                          : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                      }
-                      onClick={() => setSelectedOpponentId(opponent.id)}
-                    >
-                      {opponent.name}
-                    </Button>
-                  );
-                })}
+                    return (
+                      <Button
+                        key={opponentId}
+                        variant={active ? "default" : "outline"}
+                        className={
+                          active
+                            ? "rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
+                            : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                        }
+                        onClick={() => setSelectedOpponentId(opponentId)}
+                      >
+                        {opponent.name}
+                      </Button>
+                    );
+                  })}
               </div>
 
               <div className="flex flex-wrap gap-3">
                 {resultEvents.map((event) => {
-                  const active = event.id === selectedEvent?.id;
+                  const eventId = event.id || event.eventId;
+                  const active = eventId === (selectedEvent?.id || selectedEvent?.eventId);
 
                   return (
                     <Button
-                      key={event.id}
+                      key={eventId}
                       variant={active ? "default" : "outline"}
                       className={
                         active
                           ? "rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
                           : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
                       }
-                      onClick={() => setSelectedEventId(event.id)}
+                      onClick={() => setSelectedEventId(eventId)}
                     >
                       {event.name}
                     </Button>
@@ -324,7 +299,7 @@ const LeaguePage = () => {
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <CardTitle className="text-xl">
-                      {currentUserName} vs {selectedOpponent.name}
+                      You vs {selectedOpponent.name}
                     </CardTitle>
                     <p className="mt-1 text-sm text-slate-400">
                       {selectedEvent.name} • {selectedEvent.date}
@@ -334,44 +309,46 @@ const LeaguePage = () => {
                   <div className="flex flex-wrap gap-2">
                     <Badge
                       className={getScorePillClass(
-                        yourEventTotals.totalPoints,
-                        opponentEventTotals.totalPoints,
+                        yourTotals.totalPoints,
+                        opponentTotals.totalPoints,
                         eventHasResults
                       )}
                     >
-                      {currentUserName}: {yourEventTotals.totalPoints} PTS
+                      You: {yourTotals.totalPoints} PTS
                     </Badge>
 
                     <Badge
                       className={getScorePillClass(
-                        opponentEventTotals.totalPoints,
-                        yourEventTotals.totalPoints,
+                        opponentTotals.totalPoints,
+                        yourTotals.totalPoints,
                         eventHasResults
                       )}
                     >
-                      {selectedOpponent.name}: {opponentEventTotals.totalPoints} PTS
+                      {selectedOpponent.name}: {opponentTotals.totalPoints} PTS
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
 
               <CardContent className="space-y-3">
-                {selectedEvent.fights.map((fight) => {
-                  const officialResult = getOfficialResult(events, selectedEvent.id, fight.id);
-                  const yourPick = getPickForFight(yourEventCard, fight.id);
-                  const opponentPick = getPickForFight(opponentEventCard, fight.id);
-                  const yourPoints = calculatePickPoints(yourPick, officialResult);
-                  const opponentPoints = calculatePickPoints(opponentPick, officialResult);
+                {comparisonRows.map((row) => {
+                  const fight = row.fight || row;
+                  const officialResult =
+                    row.officialResult || row.result || fight.result || null;
+                  const yourPick = row.yourPick || row.currentUserPick || null;
+                  const opponentPick = row.opponentPick || row.otherUserPick || null;
+                  const yourPoints = row.yourPoints ?? row.currentUserPoints ?? 0;
+                  const opponentPoints = row.opponentPoints ?? row.otherUserPoints ?? 0;
 
                   return (
                     <div
-                      key={fight.id}
+                      key={fight.id || fight.fightId}
                       className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
                     >
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
                           <p className="font-semibold text-white">
-                            {fight.left.name} vs {fight.right.name}
+                            {fight.left?.name} vs {fight.right?.name}
                           </p>
                           <p className="text-sm text-slate-400">
                             {fight.weightClass} • {fight.slotLabel}
@@ -398,7 +375,7 @@ const LeaguePage = () => {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
-                                {currentUserName}
+                                You
                               </p>
                               <p className="mt-1 text-base font-semibold text-white">
                                 {yourPick?.selection || "No pick"}
@@ -467,6 +444,12 @@ const LeaguePage = () => {
                     </div>
                   );
                 })}
+
+                {comparisonRows.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-slate-400">
+                    No head-to-head data available for this matchup yet.
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ) : null}

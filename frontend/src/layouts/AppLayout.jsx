@@ -1,9 +1,9 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { User } from "lucide-react";
 import NavButton from "../components/common/NavButton";
-import { upcomingEvents } from "../data/mockData";
 import { usePicks } from "../context/PicksContext";
 import { useAuth } from "../context/AuthContext";
+import { useResults } from "../context/ResultsContext";
 import { useToast } from "../context/ToastContext";
 import { Button } from "@/components/ui/button";
 import fantasyUfcLogo from "../../fantasy-ufc.png";
@@ -13,19 +13,18 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const { getEventCard } = usePicks();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { events } = useResults();
   const { showToast } = useToast();
 
-  const featuredEvent = upcomingEvents[0];
-  const featuredEventCard = getEventCard(featuredEvent.id);
+  const featuredEvent = events[0] || null;
+  const featuredEventCard = featuredEvent ? getEventCard(featuredEvent.id) : null;
   const selectedCount = featuredEventCard?.selectedCount ?? 0;
-  const totalFights = Array.isArray(featuredEvent.fights)
-    ? featuredEvent.fights.length
-    : 0;
+  const totalFights = Array.isArray(featuredEvent?.fights) ? featuredEvent.fights.length : 0;
 
   const navItems = [
     { label: "Home", path: "/" },
     { label: "Upcoming", path: "/upcoming" },
-    { label: "Event", path: `/events/${featuredEvent.id}` },
+    ...(featuredEvent ? [{ label: "Event", path: `/events/${featuredEvent.id}` }] : []),
     { label: "Fighters", path: "/fighters" },
     { label: "Leaderboard", path: "/leaderboard" },
     { label: "League", path: "/league" },
@@ -83,42 +82,45 @@ const AppLayout = () => {
               })}
             </nav>
 
-            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
-              <div className="rounded-full border border-white/10 bg-[#d20a11]/15 p-2 text-white">
-                <User className="h-4 w-4" />
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-white">
-                  {isAuthenticated ? user?.name || "User" : "Guest"}
-                </p>
-                <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                  {selectedCount}/{totalFights} picks locked in
-                </p>
-              </div>
+            <div className="flex items-center gap-3">
+              {featuredEvent ? (
+                <div className="hidden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-300 md:flex md:items-center md:gap-3">
+                  <span className="font-semibold text-white">{featuredEvent.name}</span>
+                  <span className="text-slate-500">•</span>
+                  <span>
+                    {selectedCount}/{totalFights} picked
+                  </span>
+                </div>
+              ) : null}
 
               {isAuthenticated ? (
-                <Button
-                  variant="ghost"
-                  className="rounded-full text-slate-200 hover:bg-white/5 hover:text-white"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </Button>
+                <>
+                  <div className="hidden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-300 md:flex md:items-center md:gap-2">
+                    <User className="h-4 w-4" />
+                    <span>{user?.name || "Account"}</span>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                    onClick={handleLogout}
+                  >
+                    Logout
+                  </Button>
+                </>
               ) : (
                 <Button
-                  variant="outline"
-                  className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                  className="rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
                   onClick={() => navigate("/login")}
                 >
-                  Log in
+                  Login
                 </Button>
               )}
             </div>
           </div>
         </header>
 
-        <main className="pb-10">
+        <main>
           <Outlet />
         </main>
       </div>

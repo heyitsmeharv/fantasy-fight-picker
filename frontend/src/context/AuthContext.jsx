@@ -1,30 +1,73 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { setAccessTokenGetter } from "../api/client";
 import {
-  confirmSignup as confirmSignupApi,
-  getIdToken,
-  loadSession,
-  login as loginApi,
-  logout as logoutApi,
-  resendSignupCode as resendSignupCodeApi,
-  signup as signupApi,
-} from "../api/auth";
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { setAccessTokenGetter } from "../api/client";
+import { ensureMyProfile as ensureMyProfileApi } from "../api/profile";
+import { clearClientState } from "../utils/clearClientState";
+import * as authApi from "../api/auth";
 
 const AuthContext = createContext(null);
 
+const mergeSessionWithProfile = (session, profile) => {
+  if (!session || !profile?.displayName) {
+    return session;
+  }
+
+  return {
+    ...session,
+    user: {
+      ...(session.user || {}),
+      name: profile.displayName,
+    },
+  };
+};
+
 export const AuthProvider = ({ children }) => {
-  const [session, setSession] = useState(loadSession);
+  const [session, setSession] = useState(authApi.loadSession);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setAccessTokenGetter(getIdToken);
+  const syncProfile = useCallback(async (baseSession = null) => {
+    try {
+      const response = await ensureMyProfileApi();
+      const profile = response?.profile || null;
+
+      if (profile) {
+        const nextSession = mergeSessionWithProfile(
+          baseSession ?? authApi.loadSession(),
+          profile
+        );
+
+        setSession(nextSession);
+        authApi.saveSession(nextSession);
+      }
+
+      return profile;
+    } catch (error) {
+      console.error("AuthContext ensureMyProfile error", error);
+      return null;
+    }
   }, []);
+
+  useEffect(() => {
+    setAccessTokenGetter(authApi.getIdToken ?? authApi.getAccessToken);
+
+    const storedSession = authApi.loadSession();
+
+    if (storedSession?.accessToken) {
+      syncProfile(storedSession);
+    }
+  }, [syncProfile]);
 
   const signup = async ({ name, email, password }) => {
     setLoading(true);
 
     try {
-      const result = await signupApi({ name, email, password });
+      const result = await authApi.signup({ name, email, password });
       setSession(result.session ?? null);
       return result;
     } finally {
@@ -36,7 +79,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      return await confirmSignupApi({ email, code });
+      return await authApi.confirmSignup({ email, code });
     } finally {
       setLoading(false);
     }
@@ -46,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      return await resendSignupCodeApi({ email });
+      return await authApi.resendSignupCode({ email });
     } finally {
       setLoading(false);
     }
@@ -56,9 +99,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      const nextSession = await loginApi({ email, password });
+      const nextSession = await authApi.login({ email, password });
       setSession(nextSession);
-      return nextSession.user;
+
+      const profile = await syncProfile(nextSession);
+      const finalSession = mergeSessionWithProfile(nextSession, profile);
+
+      setSession(finalSession);
+      authApi.saveSession(finalSession);
+
+      return finalSession?.user ?? nextSession.user;
     } finally {
       setLoading(false);
     }
@@ -68,9 +118,10 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      await logoutApi();
-      setSession(null);
+      await authApi.logout();
     } finally {
+      clearClientState();
+      setSession(null);
       setLoading(false);
     }
   };

@@ -1,6 +1,7 @@
 import { getEventById, getFightsByEventId } from "../services/eventsService.js";
 import { saveUserEventPicks } from "../services/picksService.js";
-import { getUserIdFromEvent } from "../utils/auth.js";
+import { upsertProfileFromClaims } from "../services/profileService.js";
+import { getUserClaimsFromEvent, getUserIdFromEvent } from "../utils/auth.js";
 import {
   badRequest,
   forbidden,
@@ -28,6 +29,7 @@ const isValidRound = (value, maxRounds) => {
 export const handler = async (event) => {
   try {
     const userId = getUserIdFromEvent(event);
+    const claims = getUserClaimsFromEvent(event);
     const eventId = event?.pathParameters?.eventId;
 
     if (!userId) {
@@ -94,6 +96,8 @@ export const handler = async (event) => {
         return badRequest(`Invalid predictedRound for fightId: ${fightId}`);
       }
     }
+
+    await upsertProfileFromClaims(claims);
 
     const saved = await saveUserEventPicks({
       userId,
