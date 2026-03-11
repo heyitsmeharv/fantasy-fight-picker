@@ -72,6 +72,23 @@ resource "aws_dynamodb_table" "fights" {
   }
 }
 
+resource "aws_dynamodb_table" "fighters" {
+  name         = "${local.prefix}-fighters"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "fighterId"
+
+  attribute {
+    name = "fighterId"
+    type = "S"
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    Name        = "${local.prefix}-fighters"
+  }
+}
+
 resource "aws_dynamodb_table" "picks" {
   name         = "${local.prefix}-picks"
   billing_mode = "PAY_PER_REQUEST"

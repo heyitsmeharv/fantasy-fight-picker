@@ -21,6 +21,7 @@ module "lambda" {
   profiles_table_arn      = module.dynamodb.profiles_table_arn
   events_table_arn        = module.dynamodb.events_table_arn
   events_table_index_arns = module.dynamodb.events_table_index_arns
+  fighters_table_arn      = module.dynamodb.fighters_table_arn
   fights_table_arn        = module.dynamodb.fights_table_arn
   picks_table_arn         = module.dynamodb.picks_table_arn
   picks_table_index_arns  = module.dynamodb.picks_table_index_arns
@@ -32,6 +33,7 @@ module "lambda" {
 
   common_environment = {
     EVENTS_TABLE_NAME   = module.dynamodb.events_table_name
+    FIGHTERS_TABLE_NAME = module.dynamodb.fighters_table_name
     FIGHTS_TABLE_NAME   = module.dynamodb.fights_table_name
     PICKS_TABLE_NAME    = module.dynamodb.picks_table_name
     PROFILES_TABLE_NAME = module.dynamodb.profiles_table_name

@@ -37,6 +37,14 @@ output "picks_table_arn" {
   value = aws_dynamodb_table.picks.arn
 }
 
+output "fighters_table_name" {
+  value = aws_dynamodb_table.fighters.name
+}
+
+output "fighters_table_arn" {
+  value = aws_dynamodb_table.fighters.arn
+}
+
 output "picks_table_index_arns" {
   value = [
     for gsi in aws_dynamodb_table.picks.global_secondary_index :

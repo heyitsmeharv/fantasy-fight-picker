@@ -23,6 +23,10 @@ variable "fights_table_arn" {
   type = string
 }
 
+variable "fighters_table_arn" {
+  type = string
+}
+
 variable "picks_table_arn" {
   type = string
 }

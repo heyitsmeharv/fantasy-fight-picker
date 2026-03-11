@@ -11,6 +11,7 @@ locals {
     [var.events_table_arn],
     var.events_table_index_arns,
     [var.fights_table_arn],
+    [var.fighters_table_arn],
     [var.picks_table_arn],
     var.picks_table_index_arns
   )

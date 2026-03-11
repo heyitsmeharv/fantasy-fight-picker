@@ -9,14 +9,11 @@ const REGION =
   "eu-west-2";
 
 const TABLES = {
-  EVENTS:
-    process.env.EVENTS_TABLE_NAME || "fantasy-ufc-sandbox-events",
-  FIGHTS:
-    process.env.FIGHTS_TABLE_NAME || "fantasy-ufc-sandbox-fights",
-  PICKS:
-    process.env.PICKS_TABLE_NAME || "fantasy-ufc-sandbox-picks",
-  PROFILES:
-    process.env.PROFILES_TABLE_NAME || "fantasy-ufc-sandbox-profiles",
+  EVENTS: process.env.EVENTS_TABLE_NAME || "fantasy-ufc-sandbox-events",
+  FIGHTS: process.env.FIGHTS_TABLE_NAME || "fantasy-ufc-sandbox-fights",
+  FIGHTERS: process.env.FIGHTERS_TABLE_NAME || "fantasy-ufc-sandbox-fighters",
+  PICKS: process.env.PICKS_TABLE_NAME || "fantasy-ufc-sandbox-picks",
+  PROFILES: process.env.PROFILES_TABLE_NAME || "fantasy-ufc-sandbox-profiles",
 };
 
 const client = new DynamoDBClient({ region: REGION });
@@ -31,28 +28,59 @@ const now = new Date().toISOString();
 const eventId = "ufc-300";
 
 const buildFighter = ({
-  id,
+  fighterId,
   name,
+  nickname = null,
   record,
   rank,
   reach,
   stance,
   sigStrikes,
   takedowns,
+  imageUrl = null,
+  aliases = [],
 }) => ({
-  id,
+  fighterId,
+  slug: fighterId,
   name,
+  nickname,
   record,
   rank,
   reach,
   stance,
   sigStrikes,
   takedowns,
+  imageUrl,
+  aliases,
+  headshot: {
+    status: "missing",
+    bucket: null,
+    key: null,
+    thumbnailKey: null,
+    contentType: null,
+    etag: null,
+    updatedAt: null,
+  },
+  createdAt: now,
+  updatedAt: now,
 });
 
-const fighters = {
+const toFightSnapshot = (fighter) => ({
+  id: fighter.fighterId,
+  name: fighter.name,
+  nickname: fighter.nickname,
+  record: fighter.record,
+  rank: fighter.rank,
+  reach: fighter.reach,
+  stance: fighter.stance,
+  sigStrikes: fighter.sigStrikes,
+  takedowns: fighter.takedowns,
+  imageUrl: fighter.imageUrl,
+});
+
+const fightersById = {
   gaethje: buildFighter({
-    id: "fighter-gaethje",
+    fighterId: "gaethje",
     name: "Justin Gaethje",
     record: "25-5-0",
     rank: "#2",
@@ -60,39 +88,43 @@ const fighters = {
     stance: "Orthodox",
     sigStrikes: 7.46,
     takedowns: 0.15,
+    aliases: ["fighter-gaethje"],
   }),
   holloway: buildFighter({
-    id: "fighter-holloway",
+    fighterId: "holloway",
     name: "Max Holloway",
     record: "26-7-0",
     rank: "#1",
     reach: '69"',
     stance: "Orthodox",
     sigStrikes: 7.16,
-    takedowns: 0.30,
+    takedowns: 0.3,
+    aliases: ["fighter-holloway"],
   }),
   whittaker: buildFighter({
-    id: "fighter-whittaker",
+    fighterId: "whittaker",
     name: "Robert Whittaker",
     record: "26-7-0",
     rank: "#3",
     reach: '73.5"',
     stance: "Orthodox",
     sigStrikes: 4.48,
-    takedowns: 0.80,
+    takedowns: 0.8,
+    aliases: ["fighter-whittaker"],
   }),
   costa: buildFighter({
-    id: "fighter-costa",
+    fighterId: "costa",
     name: "Paulo Costa",
     record: "14-3-0",
     rank: "#7",
     reach: '72"',
     stance: "Orthodox",
     sigStrikes: 6.16,
-    takedowns: 0.00,
+    takedowns: 0,
+    aliases: ["fighter-costa"],
   }),
   edwards: buildFighter({
-    id: "fighter-edwards",
+    fighterId: "edwards",
     name: "Leon Edwards",
     record: "22-4-0",
     rank: "Champion",
@@ -100,29 +132,33 @@ const fighters = {
     stance: "Southpaw",
     sigStrikes: 2.74,
     takedowns: 1.26,
+    aliases: ["fighter-edwards"],
   }),
   masvidal: buildFighter({
-    id: "fighter-masvidal",
+    fighterId: "masvidal",
     name: "Jorge Masvidal",
     record: "35-17-0",
     rank: "#11",
     reach: '74"',
     stance: "Orthodox",
-    sigStrikes: 4.20,
+    sigStrikes: 4.2,
     takedowns: 1.59,
+    aliases: ["fighter-masvidal"],
   }),
   pereira: buildFighter({
-    id: "fighter-pereira",
+    fighterId: "pereira",
     name: "Alex Pereira",
+    nickname: "Poatan",
     record: "11-2-0",
     rank: "Champion",
     reach: '79"',
     stance: "Orthodox",
     sigStrikes: 5.23,
     takedowns: 0.17,
+    aliases: ["fighter-pereira"],
   }),
   ankalaev: buildFighter({
-    id: "fighter-ankalaev",
+    fighterId: "ankalaev",
     name: "Magomed Ankalaev",
     record: "19-1-1",
     rank: "#1",
@@ -130,8 +166,11 @@ const fighters = {
     stance: "Southpaw",
     sigStrikes: 3.64,
     takedowns: 0.92,
+    aliases: ["fighter-ankalaev"],
   }),
 };
+
+const fighterItems = Object.values(fightersById);
 
 const events = [
   {
@@ -157,14 +196,16 @@ const fights = [
     fightId: "fight-1",
     order: 1,
     cardType: "main",
-    weightClass: "Lightweight",
     slotLabel: "Main Card",
-    left: fighters.gaethje,
-    right: fighters.holloway,
+    weightClass: "Lightweight",
+    leftFighterId: fightersById.gaethje.fighterId,
+    rightFighterId: fightersById.holloway.fighterId,
+    left: toFightSnapshot(fightersById.gaethje),
+    right: toFightSnapshot(fightersById.holloway),
     result: {
       outcome: "win",
-      winnerId: fighters.holloway.id,
-      winnerName: fighters.holloway.name,
+      winnerId: fightersById.holloway.fighterId,
+      winnerName: fightersById.holloway.name,
       method: "KO/TKO",
       round: 2,
     },
@@ -176,10 +217,12 @@ const fights = [
     fightId: "fight-2",
     order: 2,
     cardType: "main",
-    weightClass: "Middleweight",
     slotLabel: "Main Card",
-    left: fighters.whittaker,
-    right: fighters.costa,
+    weightClass: "Middleweight",
+    leftFighterId: fightersById.whittaker.fighterId,
+    rightFighterId: fightersById.costa.fighterId,
+    left: toFightSnapshot(fightersById.whittaker),
+    right: toFightSnapshot(fightersById.costa),
     result: {
       outcome: "draw",
       winnerId: null,
@@ -195,14 +238,16 @@ const fights = [
     fightId: "fight-3",
     order: 3,
     cardType: "main",
-    weightClass: "Welterweight",
     slotLabel: "Main Card",
-    left: fighters.edwards,
-    right: fighters.masvidal,
+    weightClass: "Welterweight",
+    leftFighterId: fightersById.edwards.fighterId,
+    rightFighterId: fightersById.masvidal.fighterId,
+    left: toFightSnapshot(fightersById.edwards),
+    right: toFightSnapshot(fightersById.masvidal),
     result: {
       outcome: "disqualification",
-      winnerId: fighters.edwards.id,
-      winnerName: fighters.edwards.name,
+      winnerId: fightersById.edwards.fighterId,
+      winnerName: fightersById.edwards.name,
       method: "Disqualification",
       round: 3,
     },
@@ -214,10 +259,12 @@ const fights = [
     fightId: "fight-4",
     order: 4,
     cardType: "main",
-    weightClass: "Light Heavyweight",
     slotLabel: "Main Event",
-    left: fighters.pereira,
-    right: fighters.ankalaev,
+    weightClass: "Light Heavyweight",
+    leftFighterId: fightersById.pereira.fighterId,
+    rightFighterId: fightersById.ankalaev.fighterId,
+    left: toFightSnapshot(fightersById.pereira),
+    right: toFightSnapshot(fightersById.ankalaev),
     createdAt: now,
     updatedAt: now,
   },
@@ -254,26 +301,26 @@ const picks = [
     selectedCount: 4,
     picks: {
       "fight-1": {
-        selectionId: fighters.holloway.id,
-        selection: fighters.holloway.name,
+        selectionId: fightersById.holloway.fighterId,
+        selection: fightersById.holloway.name,
         predictedMethod: "KO/TKO",
         predictedRound: 2,
       },
       "fight-2": {
-        selectionId: fighters.whittaker.id,
-        selection: fighters.whittaker.name,
+        selectionId: fightersById.whittaker.fighterId,
+        selection: fightersById.whittaker.name,
         predictedMethod: "Decision",
         predictedRound: 3,
       },
       "fight-3": {
-        selectionId: fighters.edwards.id,
-        selection: fighters.edwards.name,
+        selectionId: fightersById.edwards.fighterId,
+        selection: fightersById.edwards.name,
         predictedMethod: "Decision",
         predictedRound: 5,
       },
       "fight-4": {
-        selectionId: fighters.pereira.id,
-        selection: fighters.pereira.name,
+        selectionId: fightersById.pereira.fighterId,
+        selection: fightersById.pereira.name,
         predictedMethod: "KO/TKO",
         predictedRound: 4,
       },
@@ -287,26 +334,26 @@ const picks = [
     selectedCount: 4,
     picks: {
       "fight-1": {
-        selectionId: fighters.gaethje.id,
-        selection: fighters.gaethje.name,
+        selectionId: fightersById.gaethje.fighterId,
+        selection: fightersById.gaethje.name,
         predictedMethod: "Decision",
         predictedRound: 3,
       },
       "fight-2": {
-        selectionId: fighters.costa.id,
-        selection: fighters.costa.name,
+        selectionId: fightersById.costa.fighterId,
+        selection: fightersById.costa.name,
         predictedMethod: "Decision",
         predictedRound: 3,
       },
       "fight-3": {
-        selectionId: fighters.masvidal.id,
-        selection: fighters.masvidal.name,
+        selectionId: fightersById.masvidal.fighterId,
+        selection: fightersById.masvidal.name,
         predictedMethod: "KO/TKO",
         predictedRound: 2,
       },
       "fight-4": {
-        selectionId: fighters.ankalaev.id,
-        selection: fighters.ankalaev.name,
+        selectionId: fightersById.ankalaev.fighterId,
+        selection: fightersById.ankalaev.name,
         predictedMethod: "Decision",
         predictedRound: 5,
       },
@@ -320,26 +367,26 @@ const picks = [
     selectedCount: 4,
     picks: {
       "fight-1": {
-        selectionId: fighters.holloway.id,
-        selection: fighters.holloway.name,
+        selectionId: fightersById.holloway.fighterId,
+        selection: fightersById.holloway.name,
         predictedMethod: "Submission",
         predictedRound: 2,
       },
       "fight-2": {
-        selectionId: fighters.whittaker.id,
-        selection: fighters.whittaker.name,
+        selectionId: fightersById.whittaker.fighterId,
+        selection: fightersById.whittaker.name,
         predictedMethod: "KO/TKO",
         predictedRound: 1,
       },
       "fight-3": {
-        selectionId: fighters.edwards.id,
-        selection: fighters.edwards.name,
+        selectionId: fightersById.edwards.fighterId,
+        selection: fightersById.edwards.name,
         predictedMethod: "Decision",
         predictedRound: 4,
       },
       "fight-4": {
-        selectionId: fighters.pereira.id,
-        selection: fighters.pereira.name,
+        selectionId: fightersById.pereira.fighterId,
+        selection: fightersById.pereira.name,
         predictedMethod: "KO/TKO",
         predictedRound: 1,
       },
@@ -367,11 +414,13 @@ const main = async () => {
   console.log(`Region: ${REGION}`);
   console.log(`Events table:   ${TABLES.EVENTS}`);
   console.log(`Fights table:   ${TABLES.FIGHTS}`);
+  console.log(`Fighters table: ${TABLES.FIGHTERS}`);
   console.log(`Picks table:    ${TABLES.PICKS}`);
   console.log(`Profiles table: ${TABLES.PROFILES}`);
   console.log("");
 
   await putMany(TABLES.EVENTS, events, "events");
+  await putMany(TABLES.FIGHTERS, fighterItems, "fighters");
   await putMany(TABLES.FIGHTS, fights, "fights");
   await putMany(TABLES.PROFILES, profiles, "profiles");
   await putMany(TABLES.PICKS, picks, "pick cards");

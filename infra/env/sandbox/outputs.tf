@@ -30,6 +30,10 @@ output "fights_table_name" {
   value = module.dynamodb.fights_table_name
 }
 
+output "fighters_table_name" {
+  value = module.dynamodb.fighters_table_name
+}
+
 output "picks_table_name" {
   value = module.dynamodb.picks_table_name
 }
