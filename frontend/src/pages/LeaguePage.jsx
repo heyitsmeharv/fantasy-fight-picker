@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
+import RankBadge from "../components/common/RankBadge";
 import { fetchLeagueView } from "../api/results";
 import { getOfficialResultLabel } from "../utils/scoring";
 
@@ -152,9 +153,18 @@ const LeaguePage = () => {
               </div>
               <div>
                 <p className="text-sm text-slate-400">Your rank</p>
-                <p className="text-2xl font-semibold text-white">
-                  #{currentUserEntry?.rank || "-"}
-                </p>
+                <div className="mt-1 flex items-center gap-3">
+                  {currentUserEntry?.rank ? (
+                    <RankBadge
+                      rank={currentUserEntry.rank}
+                      size="sm"
+                      highlight={Boolean(currentUserEntry?.isCurrentUser && Number(currentUserEntry?.rank) !== 1)}
+                    />
+                  ) : null}
+                  <p className="text-2xl font-semibold text-white">
+                    {currentUserEntry?.rank ? null : "-"}
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -209,15 +219,11 @@ const LeaguePage = () => {
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border font-semibold ${
-                        entry.isCurrentUser
-                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-                          : "border-white/10 bg-[#d20a11]/15 text-white"
-                      }`}
-                    >
-                      {entry.rank}
-                    </div>
+                    <RankBadge
+                      rank={entry.rank}
+                      size="sm"
+                      highlight={Boolean(entry.isCurrentUser && Number(entry.rank) !== 1)}
+                    />
 
                     <div>
                       <p className="font-semibold text-white">

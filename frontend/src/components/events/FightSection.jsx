@@ -1,5 +1,7 @@
 import MatchupRow from "./MatchupRow";
 
+const getFightId = (fight) => fight?.id ?? fight?.fightId ?? null;
+
 const FightSection = ({
   title,
   icon,
@@ -27,19 +29,23 @@ const FightSection = ({
       </div>
 
       <div className="space-y-5">
-        {fights.map((fight) => (
-          <MatchupRow
-            key={fight.id}
-            fight={fight}
-            selectedWinnerId={picks[fight.id]}
-            currentPick={getCurrentPick ? getCurrentPick(fight.id) : null}
-            onPick={onPick}
-            onRemovePick={() => onRemovePick?.(fight.id)}
-            onFighterOpen={onOpenFighter}
-            onCompare={() => onOpenCompare(fight)}
-            isLocked={isLocked}
-          />
-        ))}
+        {fights.map((fight) => {
+          const fightId = getFightId(fight);
+
+          return (
+            <MatchupRow
+              key={fightId}
+              fight={fight}
+              selectedWinnerId={picks[fightId]}
+              currentPick={getCurrentPick ? getCurrentPick(fightId) : null}
+              onPick={onPick}
+              onRemovePick={() => onRemovePick?.(fightId)}
+              onFighterOpen={onOpenFighter}
+              onCompare={() => onOpenCompare(fight)}
+              isLocked={isLocked}
+            />
+          );
+        })}
       </div>
     </section>
   );

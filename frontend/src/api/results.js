@@ -107,12 +107,54 @@ export const fetchAllEventsWithDetails = async () => {
   return fullEvents.filter(Boolean);
 };
 
+export const createEvent = async (payload) => {
+  const response = await client.post("/admin/events", payload);
+  return normalizeEvent(response?.event || null);
+};
+
+export const updateEvent = async (eventId, payload) => {
+  const response = await client.patch(`/admin/events/${eventId}`, payload);
+  return normalizeEvent(response?.event || null);
+};
+
+export const deleteEvent = async (eventId) => {
+  const response = await client.delete(`/admin/events/${eventId}`);
+
+  return {
+    ok: Boolean(response?.ok),
+    deleted: response?.deleted || null,
+  };
+};
+
 export const updateEventStatus = async (eventId, status) => {
   const response = await client.patch(`/admin/events/${eventId}/status`, {
     status,
   });
 
   return normalizeEvent(response?.event || null);
+};
+
+export const createFight = async (eventId, payload) => {
+  const response = await client.post(`/admin/events/${eventId}/fights`, payload);
+  return normalizeFight(response?.fight || null);
+};
+
+export const reorderEventFights = async (eventId, fightIds) => {
+  const response = await client.patch(`/admin/events/${eventId}/fights/reorder`, {
+    fightIds,
+  });
+
+  return (response?.fights || []).map(normalizeFight);
+};
+
+export const deleteFight = async (eventId, fightId) => {
+  const response = await client.delete(`/admin/events/${eventId}/fights/${fightId}`);
+
+  return {
+    ok: Boolean(response?.ok),
+    eventId: response?.eventId || eventId,
+    fightId: response?.fightId || fightId,
+  };
 };
 
 export const updateFightResult = async (eventId, fightId, result) => {

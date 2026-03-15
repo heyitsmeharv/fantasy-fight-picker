@@ -8,6 +8,8 @@ import { useToast } from "../context/ToastContext";
 import { Button } from "@/components/ui/button";
 import fantasyUfcLogo from "../../fantasy-ufc.png";
 
+const getEventId = (event) => event?.id ?? event?.eventId ?? null;
+
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -17,19 +19,22 @@ const AppLayout = () => {
   const { showToast } = useToast();
 
   const featuredEvent = events[0] || null;
-  const featuredEventCard = featuredEvent ? getEventCard(featuredEvent.id) : null;
+  const featuredEventId = getEventId(featuredEvent);
+  const featuredEventCard = featuredEventId ? getEventCard(featuredEventId) : null;
   const selectedCount = featuredEventCard?.selectedCount ?? 0;
   const totalFights = Array.isArray(featuredEvent?.fights) ? featuredEvent.fights.length : 0;
 
   const navItems = [
     { label: "Home", path: "/" },
     { label: "Upcoming", path: "/upcoming" },
-    ...(featuredEvent ? [{ label: "Event", path: `/events/${featuredEvent.id}` }] : []),
+    ...(featuredEventId ? [{ label: "Event", path: `/events/${featuredEventId}` }] : []),
     { label: "Fighters", path: "/fighters" },
     { label: "Leaderboard", path: "/leaderboard" },
     { label: "League", path: "/league" },
     { label: "My Picks", path: "/my-picks" },
-    ...(isAdmin ? [{ label: "Admin", path: "/admin/results" }] : []),
+    ...(isAdmin ? [{ label: "Admin Events", path: "/admin/events" }] : []),
+    ...(isAdmin ? [{ label: "Admin Results", path: "/admin/results" }] : []),
+    ...(isAdmin ? [{ label: "Admin Fighters", path: "/admin/fighters" }] : []),
   ];
 
   const handleLogout = () => {
@@ -37,7 +42,7 @@ const AppLayout = () => {
 
     showToast({
       title: "Logged out",
-      description: "You’ve been signed out.",
+      description: "You've been signed out.",
     });
 
     navigate("/");
@@ -84,12 +89,19 @@ const AppLayout = () => {
 
             <div className="flex items-center gap-3">
               {featuredEvent ? (
-                <div className="hidden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-300 md:flex md:items-center md:gap-3">
-                  <span className="font-semibold text-white">{featuredEvent.name}</span>
-                  <span className="text-slate-500">•</span>
-                  <span>
-                    {selectedCount}/{totalFights} picked
-                  </span>
+                <div className="hidden max-w-[340px] items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 md:flex">
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-medium leading-5 text-white">
+                      {featuredEvent.name}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-medium text-white">
+                      {selectedCount}/{totalFights}
+                    </p>
+                    <p className="text-[11px] leading-none text-slate-400">picked</p>
+                  </div>
                 </div>
               ) : null}
 

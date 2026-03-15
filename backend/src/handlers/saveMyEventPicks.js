@@ -1,4 +1,5 @@
-import { getEventById, getFightsByEventId } from "../services/eventsService.js";
+import { getEventById } from "../services/eventsService.js";
+import { getFightsByEventId } from "../services/fightsService.js";
 import { saveUserEventPicks } from "../services/picksService.js";
 import { upsertProfileFromClaims } from "../services/profileService.js";
 import { getUserClaimsFromEvent, getUserIdFromEvent } from "../utils/auth.js";

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
+import RankBadge from "../components/common/RankBadge";
 import { fetchLeaderboard } from "../api/results";
 
 const LeaderboardPage = () => {
@@ -104,9 +105,7 @@ const LeaderboardPage = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#d20a11]/15 font-semibold text-white">
-                        {entry.rank}
-                      </div>
+                      <RankBadge rank={entry.rank} />
 
                       <div>
                         <p className="font-semibold text-white">{entry.name}</p>

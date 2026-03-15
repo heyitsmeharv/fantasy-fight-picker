@@ -14,6 +14,8 @@ import LoginPage from "../pages/LoginPage";
 import SignupPage from "../pages/SignupPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import AdminResultsPage from "../pages/AdminResultsPage";
+import AdminEventsPage from "../pages/AdminEventsPage";
+import AdminFightersPage from "../pages/AdminFightersPage";
 
 const AppRoutes = () => {
   return (
@@ -39,6 +41,22 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <MyPicksPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/events"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminEventsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/fighters"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminFightersPage />
             </ProtectedRoute>
           }
         />

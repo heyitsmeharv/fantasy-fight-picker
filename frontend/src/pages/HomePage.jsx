@@ -7,9 +7,25 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import FighterAvatar from "../components/fighters/FighterAvatar";
 import FighterRankBadge from "../components/fighters/FighterRankBadge";
+import RankBadge from "../components/common/RankBadge";
 import { fetchLeaderboard } from "../api/results";
 import { useResults } from "../context/ResultsContext";
 import { isEventLocked } from "../utils/event";
+
+const getEventId = (event) => event?.id ?? event?.eventId ?? null;
+
+const formatFighterName = (name) => {
+  if (!name || typeof name !== "string") {
+    return "Unknown fighter";
+  }
+
+  if (!name.includes(",")) {
+    return name;
+  }
+
+  const [lastName, firstName] = name.split(",").map((part) => part.trim());
+  return [firstName, lastName].filter(Boolean).join(" ");
+};
 
 const formatDateDisplay = (value) => {
   if (!value) {
@@ -85,14 +101,29 @@ const HomePage = () => {
     };
   }, []);
 
-  const event = events[0];
-
-  const featuredFight = useMemo(() => {
-    if (!event?.fights?.length) {
+  const event = useMemo(() => {
+    if (!Array.isArray(events) || events.length === 0) {
       return null;
     }
 
-    return event.fights[0];
+    return (
+      events.find((entry) => Array.isArray(entry?.fights) && entry.fights.length > 0) ||
+      events[0]
+    );
+  }, [events]);
+
+  const featuredFight = useMemo(() => {
+    const fights = Array.isArray(event?.fights) ? event.fights : [];
+
+    if (!fights.length) {
+      return null;
+    }
+
+    return (
+      fights.find((fight) => String(fight?.slotLabel || "").toLowerCase() === "main event") ||
+      fights.find((fight) => fight?.cardType === "main") ||
+      fights[0]
+    );
   }, [event]);
 
   const mainCardCount = useMemo(() => {
@@ -113,7 +144,7 @@ const HomePage = () => {
     );
   }
 
-  if (!event || !Array.isArray(event.fights) || event.fights.length === 0) {
+  if (!event) {
     return (
       <Card className="border-white/10 bg-zinc-950/90 text-white">
         <CardContent className="p-8">
@@ -124,6 +155,7 @@ const HomePage = () => {
   }
 
   const locked = isEventLocked(event);
+  const eventId = getEventId(event);
 
   return (
     <div className="space-y-8">
@@ -144,6 +176,7 @@ const HomePage = () => {
               >
                 {locked ? "Featured card locked" : "Featured card open"}
               </Badge>
+
               <Badge className="border border-white/10 bg-white/5 text-white hover:bg-white/5">
                 {event.venue || event.location || "Venue TBC"}
               </Badge>
@@ -166,7 +199,7 @@ const HomePage = () => {
             <div className="mt-6 flex flex-wrap gap-3">
               <Button
                 className="rounded-full bg-[#d20a11] px-6 text-white hover:bg-[#b2080e]"
-                onClick={() => navigate(`/events/${event.id}`)}
+                onClick={() => eventId && navigate(`/events/${eventId}`)}
               >
                 {locked ? `View ${event.name}` : `Make picks for ${event.name}`}
               </Button>
@@ -191,44 +224,40 @@ const HomePage = () => {
                   key={item.label}
                   className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
                 >
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
                     {item.label}
                   </p>
-                  <p className="mt-2 text-xl font-semibold text-white">{item.value}</p>
+                  <p className="mt-2 text-lg font-semibold text-white">{item.value}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {featuredFight ? (
-            <div className="self-start rounded-[24px] border border-white/10 bg-black/30 p-5 backdrop-blur-sm">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#d20a11]">
-                  Main card spotlight
-                </p>
+            <div className="rounded-[22px] border border-white/10 bg-black/30 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                    Featured matchup
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-white">
+                    {featuredFight.weightClass || "Fight night matchup"}
+                  </p>
+                </div>
                 <Badge className="border border-white/10 bg-white/5 text-white hover:bg-white/5">
-                  {mainCardCount} main / {prelimCount} prelim
+                  {featuredFight.slotLabel || "Featured"}
                 </Badge>
               </div>
 
-              <div className="rounded-[20px] border border-white/10 bg-black/50 p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <Badge className="border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200 hover:bg-[#d20a11]/15">
-                    {featuredFight.slotLabel}
-                  </Badge>
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                    {featuredFight.weightClass}
-                  </p>
-                </div>
-
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center justify-between gap-4">
                   <div className="text-center">
                     <FighterAvatar fighter={featuredFight.left} size="md" className="mx-auto" />
                     <p className="mt-3 text-sm font-semibold text-white">
-                      {featuredFight.left.name}
+                      {formatFighterName(featuredFight.left?.name)}
                     </p>
                     <div className="mt-2 flex justify-center">
-                      <FighterRankBadge rank={featuredFight.left.rank} compact />
+                      <FighterRankBadge rank={featuredFight.left?.rank} compact />
                     </div>
                   </div>
 
@@ -245,16 +274,43 @@ const HomePage = () => {
                   <div className="text-center">
                     <FighterAvatar fighter={featuredFight.right} size="md" className="mx-auto" />
                     <p className="mt-3 text-sm font-semibold text-white">
-                      {featuredFight.right.name}
+                      {formatFighterName(featuredFight.right?.name)}
                     </p>
                     <div className="mt-2 flex justify-center">
-                      <FighterRankBadge rank={featuredFight.right.rank} compact />
+                      <FighterRankBadge rank={featuredFight.right?.rank} compact />
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Main card</p>
+                    <p className="mt-2 text-lg font-semibold text-white">{mainCardCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Prelims</p>
+                    <p className="mt-2 text-lg font-semibold text-white">{prelimCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Date</p>
+                    <p className="mt-2 text-lg font-semibold text-white">
+                      {formatDateDisplay(event.date)}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="rounded-[22px] border border-white/10 bg-black/30 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Featured card
+              </p>
+              <p className="mt-3 text-lg font-semibold text-white">{event.name}</p>
+              <p className="mt-2 text-slate-400">
+                Fight details are still syncing, but the card is already live in the schedule.
+              </p>
+            </div>
+          )}
         </div>
       </motion.section>
 
@@ -268,73 +324,100 @@ const HomePage = () => {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {events.map((card) => (
-              <div
-                key={card.id}
-                className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1fr)_190px_auto] md:items-center"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold uppercase tracking-[0.04em] text-white">
-                      {card.name}
+            {events.map((card) => {
+              const cardId = getEventId(card);
+
+              return (
+                <div
+                  key={cardId || card.name}
+                  className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1fr)_190px_auto] md:items-center"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold uppercase tracking-[0.04em] text-white">
+                        {card.name}
+                      </p>
+                      <Badge
+                        className={
+                          isEventLocked(card)
+                            ? "border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200"
+                            : "border border-emerald-500/20 bg-emerald-500/15 text-emerald-200"
+                        }
+                      >
+                        {isEventLocked(card) ? "Locked" : "Open"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      {card.location || card.venue || "Location TBC"}
                     </p>
-                    <Badge
-                      className={
-                        isEventLocked(card)
-                          ? "border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200"
-                          : "border border-emerald-500/20 bg-emerald-500/15 text-emerald-200"
-                      }
-                    >
-                      {isEventLocked(card) ? "Locked" : "Open"}
-                    </Badge>
                   </div>
-                  <p className="text-sm text-slate-400">
-                    {card.location || card.venue || "Location TBC"}
-                  </p>
-                </div>
 
-                <div className="w-full text-sm text-slate-300 md:w-[190px]">
-                  <p className="text-white">{formatDateDisplay(card.date)}</p>
-                  <p className="text-slate-500">Locks {formatDateTimeDisplay(card.lockTime)}</p>
-                </div>
+                  <div className="w-full text-sm text-slate-300 md:w-[190px]">
+                    <p className="text-white">{formatDateDisplay(card.date)}</p>
+                    <p className="text-slate-500">Locks {formatDateTimeDisplay(card.lockTime)}</p>
+                  </div>
 
-                <div className="md:justify-self-end">
-                  <Button
-                    className="rounded-full bg-white/10 text-white hover:bg-white/15"
-                    onClick={() => navigate(`/events/${card.id}`)}
-                  >
-                    Open card
-                  </Button>
+                  <div className="md:justify-self-end">
+                    <Button
+                      className="rounded-full bg-white/10 text-white hover:bg-white/15"
+                      onClick={() => cardId && navigate(`/events/${cardId}`)}
+                    >
+                      Open card
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 
         <Card className="border-white/10 bg-zinc-950/90 text-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Trophy className="h-5 w-5 text-white" />
-              Leaderboard preview
-            </CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Trophy className="h-5 w-5 text-white" />
+                Leaderboard preview
+              </CardTitle>
+
+              <Button
+                variant="ghost"
+                className="rounded-full text-slate-300 hover:bg-white/5 hover:text-white"
+                onClick={() => navigate("/leaderboard")}
+              >
+                View all
+              </Button>
+            </div>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {leaderboardPreview.length > 0 ? (
               leaderboardPreview.map((entry, index) => (
                 <div
                   key={entry.id || `${entry.name}-${index}`}
                   className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-400">#{entry.rank ?? index + 1}</p>
-                      <p className="text-lg font-semibold">{entry.name}</p>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <RankBadge rank={entry.rank} size="sm" />
+
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-white">
+                          {entry.name}
+                        </p>
+                        <p className="text-sm text-slate-400">
+                          {entry.accuracy}% accuracy
+                          {entry.scoredPicks > 0
+                            ? ` • ${entry.correctPicks}/${entry.scoredPicks} correct`
+                            : ""}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="text-right">
-                      <p className="text-lg font-semibold text-white">{entry.points} pts</p>
-                      <p className="text-sm text-slate-400">{entry.accuracy}% accuracy</p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xl font-semibold text-white">{entry.points}</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                        pts
+                      </p>
                     </div>
                   </div>
                 </div>

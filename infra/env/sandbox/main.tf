@@ -41,6 +41,18 @@ module "lambda" {
   }
 
   functions = {
+    get_fighters = {
+      handler     = "src/handlers/listFighters.handler"
+      memory_size = 256
+      timeout     = 10
+    }
+
+    get_fighter_by_id = {
+      handler     = "src/handlers/getFighter.handler"
+      memory_size = 256
+      timeout     = 10
+    }
+
     get_events = {
       handler     = "src/handlers/getEvents.handler"
       description = "Return all Fantasy UFC events"
@@ -69,10 +81,45 @@ module "lambda" {
       memory_size = 256
     }
 
+    admin_create_event = {
+      handler     = "src/handlers/adminCreateEvent.handler"
+      description = "Admin create of an event"
+      timeout     = 10
+      memory_size = 256
+    }
+
+    admin_update_event = {
+      handler     = "src/handlers/adminUpdateEvent.handler"
+      description = "Admin update of an event"
+      timeout     = 10
+      memory_size = 256
+    }
+
     admin_update_event_status = {
       handler     = "src/handlers/adminUpdateEventStatus.handler"
       description = "Admin update of an event status"
       timeout     = 10
+      memory_size = 256
+    }
+
+    admin_create_fight = {
+      handler     = "src/handlers/adminCreateFight.handler"
+      description = "Admin create of a fight"
+      timeout     = 10
+      memory_size = 256
+    }
+
+    admin_delete_fight = {
+      handler     = "src/handlers/adminDeleteFight.handler"
+      description = "Admin delete of a fight"
+      timeout     = 10
+      memory_size = 256
+    }
+
+    admin_delete_event = {
+      handler     = "src/handlers/adminDeleteEvent.handler"
+      description = "Admin delete of an event"
+      timeout     = 15
       memory_size = 256
     }
 
@@ -83,6 +130,33 @@ module "lambda" {
       memory_size = 256
     }
 
+    admin_reorder_event_fights = {
+      handler     = "src/handlers/adminReorderEventFights.handler"
+      description = "Admin reorder fights for an event"
+      timeout     = 10
+      memory_size = 256
+    }
+
+    admin_create_fighter = {
+      handler     = "src/handlers/adminCreateFighter.handler"
+      description = "Admin create of a fighter"
+      timeout     = 10
+      memory_size = 256
+    }
+
+    admin_update_fighter = {
+      handler     = "src/handlers/adminUpdateFighter.handler"
+      description = "Admin update of a fighter"
+      timeout     = 10
+      memory_size = 256
+    }
+
+    admin_delete_fighter = {
+      handler     = "src/handlers/adminDeleteFighter.handler"
+      description = "Admin delete of a fighter"
+      timeout     = 10
+      memory_size = 256
+    }
     get_leaderboard = {
       handler     = "src/handlers/getLeaderboard.handler"
       description = "Return leaderboard standings"

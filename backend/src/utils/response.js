@@ -4,7 +4,7 @@ const defaultHeaders = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": corsAllowOrigin,
   "Access-Control-Allow-Headers": "Content-Type,Authorization",
-  "Access-Control-Allow-Methods": "GET,PUT,PATCH,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 };
 
 export const json = (statusCode, body) => ({

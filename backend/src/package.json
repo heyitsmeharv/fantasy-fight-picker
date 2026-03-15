@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.871.0",
-    "@aws-sdk/lib-dynamodb": "^3.871.0"
+    "@aws-sdk/lib-dynamodb": "^3.871.0",
+    "dotenv": "^17.3.1"
   }
 }

@@ -1,5 +1,6 @@
 import { ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { getEvents, getEventById, getFightsByEventId } from "../services/eventsService.js";
+import { getEvents, getEventById } from "../services/eventsService.js";
+import { getFightsByEventId } from "../services/fightsService.js";
 import { ddb, TABLES } from "../services/ddb.js";
 import { getProfileNameMap } from "../services/profileService.js";
 import { getUserIdFromEvent } from "../utils/auth.js";

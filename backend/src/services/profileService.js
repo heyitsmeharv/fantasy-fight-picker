@@ -3,7 +3,7 @@ import {
   GetCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { ddb, TABLES } from "./ddb.js";
+import { ddb, TABLES } from "../services/ddb.js";
 
 const UUID_LIKE_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4,5}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

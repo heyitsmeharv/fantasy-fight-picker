@@ -34,7 +34,7 @@ variable "cors_allow_headers" {
 
 variable "cors_allow_methods" {
   type    = string
-  default = "GET,PUT,PATCH,OPTIONS"
+  default = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
 }
 
 variable "api_log_retention_in_days" {

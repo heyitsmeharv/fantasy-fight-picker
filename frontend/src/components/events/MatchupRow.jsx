@@ -4,6 +4,29 @@ import { Badge } from "@/components/ui/badge";
 import FighterChip from "../fighters/FighterChip";
 import { calculatePickPoints, isPickCorrect } from "../../utils/scoring";
 
+const getFightId = (fight) => fight?.id ?? fight?.fightId ?? null;
+
+const formatFighterName = (name) => {
+  if (!name || typeof name !== "string") {
+    return "Unknown fighter";
+  }
+
+  if (!name.includes(",")) {
+    return name;
+  }
+
+  const [lastName, firstName] = name.split(",").map((part) => part.trim());
+  return [firstName, lastName].filter(Boolean).join(" ");
+};
+
+const getShortName = (name) => {
+  const formatted = formatFighterName(name);
+  return formatted.split(" ")[0] || formatted;
+};
+
+const safeValue = (value, fallback = "N/A") =>
+  value === null || value === undefined || value === "" ? fallback : value;
+
 const MatchupRow = ({
   fight,
   selectedWinnerId,
@@ -14,6 +37,7 @@ const MatchupRow = ({
   onCompare,
   isLocked = false,
 }) => {
+  const fightId = getFightId(fight);
   const leftSelected = selectedWinnerId === fight.left.id;
   const rightSelected = selectedWinnerId === fight.right.id;
   const officialResult = fight.result || null;
@@ -57,6 +81,19 @@ const MatchupRow = ({
       ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
       : "border border-white/10 bg-white/5 text-white";
 
+  const selectedFighterPanelClass = "border-amber-500/20 bg-amber-500/10";
+  const defaultFighterPanelClass = "border-white/10 bg-transparent";
+
+  const leftFighter = {
+    ...fight.left,
+    name: formatFighterName(fight.left?.name),
+  };
+
+  const rightFighter = {
+    ...fight.right,
+    name: formatFighterName(fight.right?.name),
+  };
+
   return (
     <Card className="overflow-hidden border-white/10 bg-zinc-950/90 text-white">
       <div className="h-1 w-full bg-[linear-gradient(90deg,rgba(210,10,17,0.9),rgba(255,255,255,0.15),rgba(210,10,17,0.5))]" />
@@ -67,7 +104,7 @@ const MatchupRow = ({
               {fight.slotLabel}
             </Badge>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
-              {fight.weightClass}
+              {fight.weightClass || "Weight class TBC"}
             </p>
           </div>
 
@@ -82,25 +119,29 @@ const MatchupRow = ({
 
         <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
           <div className="space-y-3">
-            <FighterChip
-              fighter={fight.left}
-              onOpen={onFighterOpen}
-              selected={leftSelected}
-            />
+            <div
+              className={`rounded-2xl border transition ${leftSelected ? selectedFighterPanelClass : defaultFighterPanelClass
+                }`}
+            >
+              <FighterChip
+                fighter={leftFighter}
+                onOpen={onFighterOpen}
+              />
+            </div>
+
             <Button
-              onClick={() => onPick(fight.id, fight.left.id)}
+              onClick={() => onPick(fightId, leftFighter.id)}
               disabled={isLocked}
-              className={`w-full rounded-full ${
-                leftSelected
-                  ? "bg-[#d20a11] hover:bg-[#b2080e]"
-                  : "bg-white/10 text-white hover:bg-white/15"
-              } ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
+              className={`w-full rounded-full ${leftSelected
+                ? "bg-amber-500 text-black hover:bg-amber-400"
+                : "bg-white/10 text-white hover:bg-white/15"
+                } ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
             >
               {isLocked
                 ? "Locked"
                 : leftSelected
                   ? "Edit pick"
-                  : `Pick ${fight.left.name.split(" ")[0]}`}
+                  : `Pick ${getShortName(leftFighter.name)}`}
             </Button>
           </div>
 
@@ -114,26 +155,30 @@ const MatchupRow = ({
           </div>
 
           <div className="space-y-3">
-            <FighterChip
-              fighter={fight.right}
-              aligned="right"
-              onOpen={onFighterOpen}
-              selected={rightSelected}
-            />
+            <div
+              className={`rounded-2xl border transition ${rightSelected ? selectedFighterPanelClass : defaultFighterPanelClass
+                }`}
+            >
+              <FighterChip
+                fighter={rightFighter}
+                aligned="right"
+                onOpen={onFighterOpen}
+              />
+            </div>
+
             <Button
-              onClick={() => onPick(fight.id, fight.right.id)}
+              onClick={() => onPick(fightId, rightFighter.id)}
               disabled={isLocked}
-              className={`w-full rounded-full ${
-                rightSelected
-                  ? "bg-[#d20a11] hover:bg-[#b2080e]"
-                  : "bg-white/10 text-white hover:bg-white/15"
-              } ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
+              className={`w-full rounded-full ${rightSelected
+                ? "bg-amber-500 text-black hover:bg-amber-400"
+                : "bg-white/10 text-white hover:bg-white/15"
+                } ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
             >
               {isLocked
                 ? "Locked"
                 : rightSelected
                   ? "Edit pick"
-                  : `Pick ${fight.right.name.split(" ")[0]}`}
+                  : `Pick ${getShortName(rightFighter.name)}`}
             </Button>
           </div>
         </div>
@@ -142,13 +187,13 @@ const MatchupRow = ({
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Reach</p>
             <p>
-              {fight.left.reach} / {fight.right.reach}
+              {safeValue(leftFighter.reach)} / {safeValue(rightFighter.reach)}
             </p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Stance</p>
             <p>
-              {fight.left.stance} / {fight.right.stance}
+              {safeValue(leftFighter.stance)} / {safeValue(rightFighter.stance)}
             </p>
           </div>
           <div>
@@ -156,7 +201,7 @@ const MatchupRow = ({
               Sig. Strikes
             </p>
             <p>
-              {fight.left.sigStrikes} / {fight.right.sigStrikes}
+              {safeValue(leftFighter.sigStrikes)} / {safeValue(rightFighter.sigStrikes)}
             </p>
           </div>
           <div>
@@ -164,7 +209,7 @@ const MatchupRow = ({
               Takedowns
             </p>
             <p>
-              {fight.left.takedowns} / {fight.right.takedowns}
+              {safeValue(leftFighter.takedowns)} / {safeValue(rightFighter.takedowns)}
             </p>
           </div>
         </div>
@@ -195,21 +240,20 @@ const MatchupRow = ({
                 <p className="mt-1 text-sm text-slate-300">
                   {currentPick.predictedMethod || currentPick.predictedRound
                     ? [
-                        currentPick.predictedMethod,
-                        currentPick.predictedRound
-                          ? `Round ${currentPick.predictedRound}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" • ")
+                      currentPick.predictedMethod,
+                      currentPick.predictedRound
+                        ? `Round ${currentPick.predictedRound}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")
                     : "Winner only"}
                 </p>
 
                 {officialResult ? (
                   <p
-                    className={`mt-2 text-xs font-semibold uppercase tracking-[0.2em] ${
-                      pickedCorrectly ? "text-emerald-200" : "text-slate-300"
-                    }`}
+                    className={`mt-2 text-xs font-semibold uppercase tracking-[0.2em] ${pickedCorrectly ? "text-emerald-200" : "text-slate-300"
+                      }`}
                   >
                     {pickedCorrectly ? "Correct pick" : "Did not land"}
                   </p>

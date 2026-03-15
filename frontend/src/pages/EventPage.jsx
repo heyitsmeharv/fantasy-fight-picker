@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import {
   Flame,
   FlameKindling,
-  Shield,
   TimerReset,
   Lock,
   Unlock,
@@ -20,6 +19,9 @@ import { useToast } from "../context/ToastContext";
 import { useResults } from "../context/ResultsContext";
 import { getEventStatusLabel, isEventLocked } from "../utils/event";
 
+const getEventId = (event) => event?.id ?? event?.eventId ?? null;
+const getFightId = (fight) => fight?.id ?? fight?.fightId ?? null;
+
 const EventPage = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -27,26 +29,26 @@ const EventPage = () => {
   const { events } = useResults();
 
   const event = useMemo(() => {
-    return events.find((entry) => entry.id === eventId) || events[0];
+    return events.find((entry) => getEventId(entry) === eventId) || events[0];
   }, [eventId, events]);
 
   const locked = isEventLocked(event);
 
   const statusStamp = locked
     ? {
-      icon: Lock,
-      title: "Locked",
-      description: "Results are live and picks are now read-only.",
-      className: "border-[#d20a11]/20 bg-[#d20a11]/10 text-white",
-      iconClassName: "text-[#d20a11]",
-    }
+        icon: Lock,
+        title: "Locked",
+        description: "Results are live and picks are now read-only.",
+        className: "border-[#d20a11]/20 bg-[#d20a11]/10 text-white",
+        iconClassName: "text-[#d20a11]",
+      }
     : {
-      icon: Unlock,
-      title: "Open",
-      description: "You can still make and edit picks before lock.",
-      className: "border-emerald-500/20 bg-emerald-500/10 text-white",
-      iconClassName: "text-emerald-400",
-    };
+        icon: Unlock,
+        title: "Open",
+        description: "You can still make and edit picks before lock.",
+        className: "border-emerald-500/20 bg-emerald-500/10 text-white",
+        iconClassName: "text-emerald-400",
+      };
 
   const StatusStampIcon = statusStamp.icon;
 
@@ -75,15 +77,16 @@ const EventPage = () => {
     );
   }
 
-  const eventCard = getEventCard(event.id);
-  const picks = getEventPickMap(event.id);
+  const resolvedEventId = getEventId(event);
+  const eventCard = getEventCard(resolvedEventId);
+  const picks = getEventPickMap(resolvedEventId);
   const selectedCount = eventCard?.selectedCount ?? 0;
   const progressValue = Math.round((selectedCount / event.fights.length) * 100);
   const mainCard = event.fights.filter((fight) => fight.cardType === "main");
   const prelims = event.fights.filter((fight) => fight.cardType === "prelim");
 
   const openFighter = (fighter) => navigate(`/fighters/${fighter.id}`);
-  const openCompare = (fight) => navigate(`/compare/${fight.id}`);
+  const openCompare = (fight) => navigate(`/compare/${getFightId(fight)}`);
 
   const formatDateTimeDisplay = (value) => {
     if (!value) {
@@ -117,7 +120,7 @@ const EventPage = () => {
       return;
     }
 
-    const fight = event.fights.find((entry) => entry.id === fightId);
+    const fight = event.fights.find((entry) => getFightId(entry) === fightId);
 
     if (!fight) {
       return;
@@ -174,7 +177,7 @@ const EventPage = () => {
       return;
     }
 
-    updatePickDetails(event.id, detailsModal.fight.id, {
+    updatePickDetails(resolvedEventId, getFightId(detailsModal.fight), {
       predictedMethod,
       predictedRound,
     });
@@ -190,9 +193,9 @@ const EventPage = () => {
       return;
     }
 
-    removePick(event.id, fightId);
+    removePick(resolvedEventId, fightId);
 
-    if (detailsModal.fight?.id === fightId) {
+    if (getFightId(detailsModal.fight) === fightId) {
       handleCloseDetailsModal();
     }
 
@@ -208,7 +211,7 @@ const EventPage = () => {
   };
 
   const activeModalPick =
-    eventCard?.picks.find((pick) => pick.fightId === detailsModal.fight?.id) || null;
+    eventCard?.picks.find((pick) => pick.fightId === getFightId(detailsModal.fight)) || null;
 
   return (
     <div className="space-y-6">
@@ -273,7 +276,9 @@ const EventPage = () => {
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                       Lock time
                     </p>
-                    <p className="mt-1 font-semibold text-white">{formatDateTimeDisplay(event.lockTime)}</p>
+                    <p className="mt-1 font-semibold text-white">
+                      {formatDateTimeDisplay(event.lockTime)}
+                    </p>
                   </div>
                 </div>
               </div>

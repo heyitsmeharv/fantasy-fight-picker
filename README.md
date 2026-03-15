@@ -45,7 +45,7 @@ Run everything below in **Git Bash** from the repo root:
 bash infra/scripts/prereqs.sh 
  
 # switch AWS context (AWS_PROFILE is set to match the environment and must exist under infra/env/) 
-export ENVIRONMENT="<aws-account>" 
+export ENVIRONMENT="<aws-account>"
 source infra/scripts/use-env.sh "$ENVIRONMENT" 
  
 # confirm which AWS account/role you are about to use 

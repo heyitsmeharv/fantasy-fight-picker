@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Swords } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,25 +7,63 @@ import { Badge } from "@/components/ui/badge";
 import FighterAvatar from "../components/fighters/FighterAvatar";
 import FighterRankBadge from "../components/fighters/FighterRankBadge";
 import FighterStat from "../components/fighters/FighterStat";
+import { fetchFighterById } from "../api/fighters";
 import { useResults } from "../context/ResultsContext";
+
+const getEventId = (event) => event?.id ?? event?.eventId ?? null;
+
+const hasValue = (value) => value !== null && value !== undefined && value !== "";
 
 const FighterPage = () => {
   const { fighterId } = useParams();
   const navigate = useNavigate();
   const { events } = useResults();
 
-  const allFighters = useMemo(() => {
-    return events
-      .flatMap((event) => (Array.isArray(event.fights) ? event.fights : []))
-      .flatMap((fight) => [fight.left, fight.right])
-      .filter(Boolean);
-  }, [events]);
+  const [fighter, setFighter] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const fighter = useMemo(() => {
-    return allFighters.find((entry) => entry.id === fighterId) || null;
-  }, [allFighters, fighterId]);
+  const fallbackEventId = getEventId(events[0]);
 
-  const fallbackEventId = events[0]?.id || null;
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFighter = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchFighterById(fighterId);
+
+        if (!cancelled) {
+          setFighter(data);
+        }
+      } catch (error) {
+        console.error("FighterPage fetch error", error);
+
+        if (!cancelled) {
+          setFighter(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadFighter();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fighterId]);
+
+  if (loading) {
+    return (
+      <Card className="border-white/10 bg-zinc-950/90 text-white">
+        <CardContent className="p-8">
+          <p className="text-2xl font-semibold">Loading fighter...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!fighter) {
     return (
@@ -33,7 +71,7 @@ const FighterPage = () => {
         <CardContent className="p-8">
           <p className="text-2xl font-semibold">Fighter not found</p>
           <p className="mt-2 text-slate-400">
-            There is no matching fighter in the loaded event data.
+            There is no matching fighter in the roster.
           </p>
           {fallbackEventId ? (
             <Button
@@ -55,24 +93,25 @@ const FighterPage = () => {
           <div className="mb-5 flex items-center gap-4">
             <FighterAvatar fighter={fighter} size="lg" />
             <div>
-              <p className="text-3xl font-bold uppercase">{fighter.name}</p>
+              <p className="text-3xl font-bold">{fighter.name}</p>
               <div className="mt-2 flex items-center gap-3">
                 <p className="text-slate-400">{fighter.record || "Record TBC"}</p>
-                <FighterRankBadge rank={fighter.rank || "—"} />
+                <FighterRankBadge rank={fighter.rank || "Unranked"} />
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <FighterStat label="Division" value={fighter.displayWeightClass || "Roster"} />
             <FighterStat label="Reach" value={fighter.reach || "N/A"} />
             <FighterStat label="Stance" value={fighter.stance || "N/A"} />
             <FighterStat
               label="Sig. strikes / min"
-              value={fighter.sigStrikes ?? "N/A"}
+              value={hasValue(fighter.sigStrikes) ? fighter.sigStrikes : "N/A"}
             />
             <FighterStat
               label="Takedowns / 15 min"
-              value={fighter.takedowns ?? "N/A"}
+              value={hasValue(fighter.takedowns) ? fighter.takedowns : "N/A"}
             />
           </div>
 
@@ -111,7 +150,7 @@ const FighterPage = () => {
             <p className="text-sm text-slate-400">Striking output</p>
             <div className="mt-3 flex items-center justify-between gap-4">
               <p className="text-xl font-semibold">
-                {fighter.sigStrikes ?? "N/A"} {fighter.sigStrikes !== undefined ? "per min" : ""}
+                {hasValue(fighter.sigStrikes) ? `${fighter.sigStrikes} per min` : "N/A"}
               </p>
               <Badge className="border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200 hover:bg-[#d20a11]/15">
                 Pressure threat
@@ -123,7 +162,7 @@ const FighterPage = () => {
             <p className="text-sm text-slate-400">Wrestling pressure</p>
             <div className="mt-3 flex items-center justify-between gap-4">
               <p className="text-xl font-semibold">
-                {fighter.takedowns ?? "N/A"} {fighter.takedowns !== undefined ? "per 15 min" : ""}
+                {hasValue(fighter.takedowns) ? `${fighter.takedowns} per 15 min` : "N/A"}
               </p>
               <Badge className="border border-white/10 bg-white/5 text-white hover:bg-white/5">
                 Control upside
