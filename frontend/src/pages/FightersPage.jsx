@@ -8,9 +8,10 @@ import FighterRankBadge from "../components/fighters/FighterRankBadge";
 import { fetchFighters } from "../api/fighters";
 
 const getRankOrder = (rank) => {
-  if (rank === "Champion") return 0;
+  if (!rank) return 999;
+  if (/champion/i.test(rank)) return 0;
 
-  const match = rank?.match(/^#(\d+)$/);
+  const match = rank.match(/^#(\d+)/);
 
   if (match) {
     return Number(match[1]);
@@ -20,19 +21,19 @@ const getRankOrder = (rank) => {
 };
 
 const weightClassOrder = [
-  "Women's Strawweight",
-  "Women's Flyweight",
-  "Women's Bantamweight",
-  "Women's Featherweight",
-  "Strawweight",
-  "Flyweight",
-  "Bantamweight",
-  "Featherweight",
-  "Lightweight",
-  "Welterweight",
-  "Middleweight",
-  "Light Heavyweight",
   "Heavyweight",
+  "Light Heavyweight",
+  "Middleweight",
+  "Welterweight",
+  "Lightweight",
+  "Featherweight",
+  "Bantamweight",
+  "Flyweight",
+  "Strawweight",
+  "Women's Featherweight",
+  "Women's Bantamweight",
+  "Women's Flyweight",
+  "Women's Strawweight",
   "Roster",
 ];
 
@@ -162,8 +163,8 @@ const FightersPage = () => {
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {entries.map((fighter) => (
                     <button
-                      key={fighter.id}
-                      onClick={() => navigate(`/fighters/${fighter.id}`)}
+                      key={fighter.fighterId}
+                      onClick={() => navigate(`/fighters/${fighter.fighterId}`)}
                       className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-[#d20a11]/50 hover:bg-white/[0.05]"
                     >
                       <div className="flex items-center gap-4">

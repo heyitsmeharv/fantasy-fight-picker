@@ -28,14 +28,41 @@ const normalizeFighter = (fighter) => {
   };
 };
 
+const buildFighterLookupIds = (fighterId) => {
+  const original = String(fighterId || "").trim();
+
+  if (!original) {
+    return [];
+  }
+
+  const dehyphenated = original.replace(/-/g, "");
+
+  return [...new Set([original, dehyphenated].filter(Boolean))];
+};
+
 export const fetchFighters = async () => {
   const response = await client.get("/fighters");
   return (response?.fighters || []).map(normalizeFighter).filter(Boolean);
 };
 
 export const fetchFighterById = async (fighterId) => {
-  const response = await client.get(`/fighters/${fighterId}`);
-  return normalizeFighter(response?.fighter || null);
+  const candidateIds = buildFighterLookupIds(fighterId);
+  let lastError = null;
+
+  for (const candidateId of candidateIds) {
+    try {
+      const response = await client.get(`/fighters/${candidateId}`);
+      const fighter = normalizeFighter(response?.fighter || null);
+
+      if (fighter) {
+        return fighter;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error(`Fighter not found: ${fighterId}`);
 };
 
 export const createFighter = async (payload) => {
@@ -54,5 +81,21 @@ export const deleteFighter = async (fighterId) => {
   return {
     ok: Boolean(response?.ok),
     fighterId: response?.fighterId || fighterId,
+  };
+};
+
+export const importFighters = async (rows) => {
+  const response = await client.post("/admin/fighters/import", {
+    rows,
+  });
+
+  return {
+    created: response?.created || 0,
+    updated: response?.updated || 0,
+    total: response?.total || 0,
+    results: (response?.results || []).map((entry) => ({
+      ...entry,
+      fighter: normalizeFighter(entry?.fighter || null),
+    })),
   };
 };

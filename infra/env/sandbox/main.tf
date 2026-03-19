@@ -157,6 +157,14 @@ module "lambda" {
       timeout     = 10
       memory_size = 256
     }
+
+    admin_import_fighters = {
+      handler     = "src/handlers/adminImportFighters.handler"
+      description = "Admin bulk import of fighters"
+      timeout     = 20
+      memory_size = 256
+    }
+    
     get_leaderboard = {
       handler     = "src/handlers/getLeaderboard.handler"
       description = "Return leaderboard standings"

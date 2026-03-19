@@ -99,9 +99,10 @@ export const handler = async (event) => {
       .map((entry) => ({
         eventId: entry.eventId,
         name: entry.name,
+        tagline: entry.tagline || null,
+        date: entry.date || null,
         status: String(entry.status || "open").toLowerCase(),
       }));
-
     const selectedEventId = requestedEventId || resultEvents[0]?.eventId || null;
 
     if (!selectedEventId) {
@@ -140,11 +141,11 @@ export const handler = async (event) => {
       : [];
     const opponentCard = selectedOpponent
       ? opponentCards.find((entry) => entry.eventId === selectedEventId) || {
-          userId: selectedOpponent.userId,
-          eventId: selectedEventId,
-          selectedCount: 0,
-          picks: {},
-        }
+        userId: selectedOpponent.userId,
+        eventId: selectedEventId,
+        selectedCount: 0,
+        picks: {},
+      }
       : null;
 
     const fightRows = buildHeadToHeadRows({
@@ -161,20 +162,20 @@ export const handler = async (event) => {
 
     const opponentTotals = opponentCard
       ? calculateEventTotals({
-          card: opponentCard,
-          event: selectedEvent,
-          fights,
-        })
+        card: opponentCard,
+        event: selectedEvent,
+        fights,
+      })
       : {
-          totalPoints: 0,
-          correctPicks: 0,
-          scoredPicks: 0,
-          accuracy: 0,
-          selectedCount: 0,
-          totalFights: fights.length,
-          status: String(selectedEvent.status || "open").toLowerCase(),
-          picks: [],
-        };
+        totalPoints: 0,
+        correctPicks: 0,
+        scoredPicks: 0,
+        accuracy: 0,
+        selectedCount: 0,
+        totalFights: fights.length,
+        status: String(selectedEvent.status || "open").toLowerCase(),
+        picks: [],
+      };
 
     return ok({
       leaderboard,

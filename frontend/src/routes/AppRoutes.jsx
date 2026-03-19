@@ -26,7 +26,7 @@ const AppRoutes = () => {
         <Route path="/events/:eventId" element={<EventPage />} />
         <Route path="/fighters" element={<FightersPage />} />
         <Route path="/fighters/:fighterId" element={<FighterPage />} />
-        <Route path="/compare/:fightId" element={<ComparePage />} />
+        <Route path="/events/:eventId/compare/:fightId" element={<ComparePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route
           path="/league"

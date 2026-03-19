@@ -24,11 +24,27 @@ export const normalizeFight = (fight) => {
     return null;
   }
 
+  const canonicalFightId = fight.fightId ?? fight.id ?? null;
+
   return {
     ...fight,
-    id: fight.id ?? fight.fightId,
-    fightId: fight.fightId ?? fight.id,
+    id: canonicalFightId,
+    fightId: canonicalFightId,
     cardType: inferCardType(fight),
+    left: fight.left
+      ? {
+          ...fight.left,
+          id: fight.left.fighterId ?? fight.left.id ?? null,
+          fighterId: fight.left.fighterId ?? fight.left.id ?? null,
+        }
+      : null,
+    right: fight.right
+      ? {
+          ...fight.right,
+          id: fight.right.fighterId ?? fight.right.id ?? null,
+          fighterId: fight.right.fighterId ?? fight.right.id ?? null,
+        }
+      : null,
   };
 };
 
@@ -37,10 +53,12 @@ export const normalizeEvent = (event) => {
     return null;
   }
 
+  const canonicalEventId = event.eventId ?? event.id ?? null;
+
   return {
     ...event,
-    id: event.id ?? event.eventId,
-    eventId: event.eventId ?? event.id,
+    id: canonicalEventId,
+    eventId: canonicalEventId,
     fights: Array.isArray(event.fights) ? event.fights.map(normalizeFight) : [],
   };
 };
@@ -97,7 +115,7 @@ export const fetchAllEventsWithDetails = async () => {
   const fullEvents = await Promise.all(
     events.map(async (event) => {
       try {
-        return await fetchEventById(event.id);
+        return await fetchEventById(event.eventId);
       } catch {
         return event;
       }

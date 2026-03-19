@@ -330,29 +330,30 @@ const HomePage = () => {
               return (
                 <div
                   key={cardId || card.name}
-                  className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1fr)_190px_auto] md:items-center"
+                  className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1fr)_96px_220px_auto] md:items-center"
                 >
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold uppercase tracking-[0.04em] text-white">
-                        {card.name}
-                      </p>
-                      <Badge
-                        className={
-                          isEventLocked(card)
-                            ? "border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200"
-                            : "border border-emerald-500/20 bg-emerald-500/15 text-emerald-200"
-                        }
-                      >
-                        {isEventLocked(card) ? "Locked" : "Open"}
-                      </Badge>
-                    </div>
+                    <p className="font-semibold uppercase tracking-[0.04em] text-white">
+                      {card.name}
+                    </p>
                     <p className="text-sm text-slate-400">
                       {card.location || card.venue || "Location TBC"}
                     </p>
                   </div>
 
-                  <div className="w-full text-sm text-slate-300 md:w-[190px]">
+                  <div className="md:justify-self-start">
+                    <Badge
+                      className={
+                        isEventLocked(card)
+                          ? "inline-flex min-w-[84px] justify-center border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200"
+                          : "inline-flex min-w-[84px] justify-center border border-emerald-500/20 bg-emerald-500/15 text-emerald-200"
+                      }
+                    >
+                      {isEventLocked(card) ? "Locked" : "Open"}
+                    </Badge>
+                  </div>
+
+                  <div className="w-full text-sm text-slate-300 md:w-[220px]">
                     <p className="text-white">{formatDateDisplay(card.date)}</p>
                     <p className="text-slate-500">Locks {formatDateTimeDisplay(card.lockTime)}</p>
                   </div>

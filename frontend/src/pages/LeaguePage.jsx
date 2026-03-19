@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Swords, Trophy, Target } from "lucide-react";
+import { ChevronDown, Swords, Target, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
 import RankBadge from "../components/common/RankBadge";
 import { fetchLeagueView } from "../api/results";
@@ -12,6 +11,9 @@ const smallPillClass = "text-[10px] leading-none tracking-[0.18em]";
 
 const scorePillBaseClass =
   "inline-flex h-8 min-w-[82px] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 font-semibold uppercase leading-none text-[11px] tracking-[0.14em]";
+
+const selectClass =
+  "h-11 w-full appearance-none rounded-2xl border border-white/10 bg-black/20 px-4 pr-11 text-sm font-medium text-white outline-none transition focus:border-white/20 focus:ring-2 focus:ring-white/10 disabled:cursor-not-allowed disabled:opacity-60";
 
 const getScorePillClass = (score, otherScore, isResolved = true) => {
   if (!isResolved || score === otherScore) {
@@ -100,6 +102,50 @@ const LeaguePage = () => {
   const opponentTotals = comparison?.opponentTotals || emptyTotals;
   const eventHasResults = Boolean(comparison?.eventHasResults);
   const comparisonRows = comparison?.fights || [];
+
+  const opponentOptions = useMemo(
+    () =>
+      leaderboardEntries
+        .filter((entry) => !entry.isCurrentUser)
+        .map((entry) => ({
+          id: entry.userId || entry.id,
+          name: entry.name,
+        })),
+    [leaderboardEntries]
+  );
+
+  const getEventDisplayLabel = (event) => {
+    const baseName = event?.name || "Unknown event";
+    const rawTagline = event?.tagline?.trim();
+
+    if (!rawTagline) {
+      return baseName;
+    }
+
+    const vsMatch = rawTagline.match(/([A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÿ'’.-]+)*)\s+vs\s+([A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÿ'’.-]+)*)/i);
+
+    if (vsMatch) {
+      return `${baseName} • ${vsMatch[1]} vs ${vsMatch[2]}`;
+    }
+
+    return `${baseName} • ${rawTagline}`;
+  };
+
+  const eventOptions = useMemo(
+    () =>
+      resultEvents.map((event) => ({
+        id: event.id || event.eventId,
+        label: getEventDisplayLabel(event),
+        tagline: event.tagline || null,
+      })),
+    [resultEvents]
+  );
+
+  const activeOpponentId =
+    selectedOpponent?.userId || selectedOpponent?.id || selectedOpponentId || "";
+
+  const activeEventId =
+    selectedEvent?.id || selectedEvent?.eventId || selectedEventId || "";
 
   const eventWinnerLabel = useMemo(() => {
     if (!selectedOpponent) {
@@ -211,11 +257,10 @@ const LeaguePage = () => {
             {leaderboardEntries.map((entry) => (
               <div
                 key={entry.id || entry.userId}
-                className={`rounded-2xl border p-4 ${
-                  entry.isCurrentUser
-                    ? "border-emerald-500/20 bg-emerald-500/10"
-                    : "border-white/10 bg-white/[0.03]"
-                }`}
+                className={`rounded-2xl border p-4 ${entry.isCurrentUser
+                  ? "border-emerald-500/20 bg-emerald-500/10"
+                  : "border-white/10 bg-white/[0.03]"
+                  }`}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
@@ -246,55 +291,76 @@ const LeaguePage = () => {
         <div className="space-y-6">
           <Card className="border-white/10 bg-zinc-950/90 text-white">
             <CardHeader>
-              <CardTitle className="text-xl">Choose opponent</CardTitle>
+              <CardTitle className="text-xl">Choose matchup</CardTitle>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-3">
-                {leaderboardEntries
-                  .filter((entry) => !entry.isCurrentUser)
-                  .map((opponent) => {
-                    const opponentId = opponent.userId || opponent.id;
-                    const active =
-                      opponentId === (selectedOpponent?.userId || selectedOpponent?.id);
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="league-opponent-select"
+                    className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400"
+                  >
+                    Select opponent
+                  </label>
 
-                    return (
-                      <Button
-                        key={opponentId}
-                        variant={active ? "default" : "outline"}
-                        className={
-                          active
-                            ? "rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
-                            : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                        }
-                        onClick={() => setSelectedOpponentId(opponentId)}
-                      >
-                        {opponent.name}
-                      </Button>
-                    );
-                  })}
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {resultEvents.map((event) => {
-                  const eventId = event.id || event.eventId;
-                  const active = eventId === (selectedEvent?.id || selectedEvent?.eventId);
-
-                  return (
-                    <Button
-                      key={eventId}
-                      variant={active ? "default" : "outline"}
-                      className={
-                        active
-                          ? "rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
-                          : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                      }
-                      onClick={() => setSelectedEventId(eventId)}
+                  <div className="relative">
+                    <select
+                      id="league-opponent-select"
+                      className={selectClass}
+                      value={activeOpponentId}
+                      onChange={(event) => setSelectedOpponentId(event.target.value)}
+                      disabled={opponentOptions.length === 0}
                     >
-                      {event.name}
-                    </Button>
-                  );
-                })}
+                      <option value="" disabled>
+                        {opponentOptions.length ? "Choose opponent" : "No opponents available"}
+                      </option>
+
+                      {opponentOptions.map((opponent) => (
+                        <option key={opponent.id} value={opponent.id} className="bg-zinc-950 text-white">
+                          {opponent.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="league-event-select"
+                    className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400"
+                  >
+                    Select card
+                  </label>
+
+                  <div className="relative">
+                    <select
+                      id="league-event-select"
+                      className={selectClass}
+                      value={activeEventId}
+                      onChange={(event) => setSelectedEventId(event.target.value)}
+                      disabled={eventOptions.length === 0}
+                    >
+                      <option value="" disabled>
+                        {eventOptions.length ? "Choose card" : "No cards available"}
+                      </option>
+
+                      {eventOptions.map((eventOption) => (
+                        <option
+                          key={eventOption.id}
+                          value={eventOption.id}
+                          className="bg-zinc-950 text-white"
+                        >
+                          {eventOption.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -308,7 +374,7 @@ const LeaguePage = () => {
                       You vs {selectedOpponent.name}
                     </CardTitle>
                     <p className="mt-1 text-sm text-slate-400">
-                      {selectedEvent.name} • {selectedEvent.date}
+                      {getEventDisplayLabel(selectedEvent)} • {selectedEvent.date}
                     </p>
                   </div>
 
@@ -389,13 +455,13 @@ const LeaguePage = () => {
                               <p className="mt-1 text-sm text-slate-400">
                                 {yourPick
                                   ? [
-                                      yourPick.predictedMethod,
-                                      yourPick.predictedRound
-                                        ? `Round ${yourPick.predictedRound}`
-                                        : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" • ") || "Winner only"
+                                    yourPick.predictedMethod,
+                                    yourPick.predictedRound
+                                      ? `Round ${yourPick.predictedRound}`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" • ") || "Winner only"
                                   : "No prediction"}
                               </p>
                             </div>
@@ -424,13 +490,13 @@ const LeaguePage = () => {
                               <p className="mt-1 text-sm text-slate-400">
                                 {opponentPick
                                   ? [
-                                      opponentPick.predictedMethod,
-                                      opponentPick.predictedRound
-                                        ? `Round ${opponentPick.predictedRound}`
-                                        : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" • ") || "Winner only"
+                                    opponentPick.predictedMethod,
+                                    opponentPick.predictedRound
+                                      ? `Round ${opponentPick.predictedRound}`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" • ") || "Winner only"
                                   : "No prediction"}
                               </p>
                             </div>

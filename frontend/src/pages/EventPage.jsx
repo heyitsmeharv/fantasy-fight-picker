@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import {
   Flame,
   FlameKindling,
-  TimerReset,
   Lock,
   Unlock,
 } from "lucide-react";
@@ -19,8 +18,9 @@ import { useToast } from "../context/ToastContext";
 import { useResults } from "../context/ResultsContext";
 import { getEventStatusLabel, isEventLocked } from "../utils/event";
 
-const getEventId = (event) => event?.id ?? event?.eventId ?? null;
-const getFightId = (fight) => fight?.id ?? fight?.fightId ?? null;
+const getEventId = (event) => event?.eventId ?? event?.id ?? null;
+const getFightId = (fight) => fight?.fightId ?? fight?.id ?? null;
+const getFighterId = (fighter) => fighter?.fighterId ?? fighter?.id ?? null;
 
 const EventPage = () => {
   const { eventId } = useParams();
@@ -29,28 +29,8 @@ const EventPage = () => {
   const { events } = useResults();
 
   const event = useMemo(() => {
-    return events.find((entry) => getEventId(entry) === eventId) || events[0];
+    return events.find((entry) => getEventId(entry) === eventId) || null;
   }, [eventId, events]);
-
-  const locked = isEventLocked(event);
-
-  const statusStamp = locked
-    ? {
-        icon: Lock,
-        title: "Locked",
-        description: "Results are live and picks are now read-only.",
-        className: "border-[#d20a11]/20 bg-[#d20a11]/10 text-white",
-        iconClassName: "text-[#d20a11]",
-      }
-    : {
-        icon: Unlock,
-        title: "Open",
-        description: "You can still make and edit picks before lock.",
-        className: "border-emerald-500/20 bg-emerald-500/10 text-white",
-        iconClassName: "text-emerald-400",
-      };
-
-  const StatusStampIcon = statusStamp.icon;
 
   const {
     getEventCard,
@@ -69,24 +49,61 @@ const EventPage = () => {
   if (!event || !Array.isArray(event.fights)) {
     return (
       <div className="rounded-2xl border border-white/10 bg-zinc-950/90 p-8 text-white">
-        <p className="text-2xl font-semibold">This card is not mocked yet.</p>
+        <p className="text-2xl font-semibold">Event not found</p>
         <p className="mt-2 text-slate-400">
-          Add the fight array to the mock data and this page will render fully.
+          No event matched this route.
         </p>
       </div>
     );
   }
 
+  const locked = isEventLocked(event);
+
+  const statusStamp = locked
+    ? {
+      icon: Lock,
+      title: "Locked",
+      description: "Results are live and picks are now read-only.",
+      className: "border-[#d20a11]/20 bg-[#d20a11]/10 text-white",
+      iconClassName: "text-[#d20a11]",
+    }
+    : {
+      icon: Unlock,
+      title: "Open",
+      description: "You can still make and edit picks before lock.",
+      className: "border-emerald-500/20 bg-emerald-500/10 text-white",
+      iconClassName: "text-emerald-400",
+    };
+
+  const StatusStampIcon = statusStamp.icon;
+
   const resolvedEventId = getEventId(event);
   const eventCard = getEventCard(resolvedEventId);
   const picks = getEventPickMap(resolvedEventId);
   const selectedCount = eventCard?.selectedCount ?? 0;
-  const progressValue = Math.round((selectedCount / event.fights.length) * 100);
+  const progressValue = event.fights.length
+    ? Math.round((selectedCount / event.fights.length) * 100)
+    : 0;
+
   const mainCard = event.fights.filter((fight) => fight.cardType === "main");
   const prelims = event.fights.filter((fight) => fight.cardType === "prelim");
 
-  const openFighter = (fighter) => navigate(`/fighters/${fighter.id}`);
-  const openCompare = (fight) => navigate(`/compare/${getFightId(fight)}`);
+  const openFighter = (fighter) => {
+    const fighterId = getFighterId(fighter);
+
+    if (fighterId) {
+      navigate(`/fighters/${fighterId}`);
+    }
+  };
+
+  const openCompare = (fight) => {
+    const resolvedFightId = getFightId(fight);
+    const resolvedEventId = getEventId(event);
+
+    if (resolvedEventId && resolvedFightId) {
+      navigate(`/events/${resolvedEventId}/compare/${resolvedFightId}`);
+    }
+  };
 
   const formatDateTimeDisplay = (value) => {
     if (!value) {
@@ -126,7 +143,9 @@ const EventPage = () => {
       return;
     }
 
-    const fighter = [fight.left, fight.right].find((entry) => entry.id === fighterId);
+    const fighter = [fight.left, fight.right].find(
+      (entry) => getFighterId(entry) === fighterId
+    );
 
     if (!fighter) {
       return;
@@ -303,51 +322,16 @@ const EventPage = () => {
                   Choose a winner for every fight to complete your card.
                 </p>
 
-                <Progress value={progressValue} className="mt-5 h-2 bg-white/10" />
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="flex items-center gap-2 text-white">
-                      <Flame className="h-4 w-4 text-[#d20a11]" />
-                      <p className="text-sm font-medium">Winner points</p>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-400">3 points per correct pick</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="flex items-center gap-2 text-white">
-                      <TimerReset className="h-4 w-4 text-[#d20a11]" />
-                      <p className="text-sm font-medium">Method bonus</p>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-400">+2 method, +1 round</p>
-                  </div>
-                </div>
-
-                <Button
-                  className="mt-5 w-full rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
-                  disabled
-                >
-                  {locked
-                    ? "Card locked"
-                    : selectedCount === 0
-                      ? "Choose your picks"
-                      : "Picks saved locally"}
-                </Button>
+                <Progress value={progressValue} className="mt-4 h-2.5 bg-white/10" />
               </div>
             </div>
           </CardContent>
         </Card>
       </motion.section>
 
-      {locked ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
-          This event is locked, so picks are now read-only.
-        </div>
-      ) : null}
-
       <FightSection
         title="Main card"
-        icon={<Flame className="h-4 w-4 text-[#d20a11]" />}
+        icon={<Flame className="h-5 w-5 text-[#d20a11]" />}
         fights={mainCard}
         picks={picks}
         onPick={handlePick}
@@ -360,7 +344,7 @@ const EventPage = () => {
 
       <FightSection
         title="Prelims"
-        icon={<FlameKindling className="h-4 w-4 text-orange-400" />}
+        icon={<FlameKindling className="h-5 w-5 text-[#d20a11]" />}
         fights={prelims}
         picks={picks}
         onPick={handlePick}
@@ -373,12 +357,15 @@ const EventPage = () => {
 
       <PickDetailsModal
         isOpen={detailsModal.isOpen}
+        onClose={handleCloseDetailsModal}
         fight={detailsModal.fight}
         fighter={detailsModal.fighter}
-        initialMethod={activeModalPick?.predictedMethod ?? null}
-        initialRound={activeModalPick?.predictedRound ?? null}
-        onClose={handleCloseDetailsModal}
+        currentPick={activeModalPick}
         onSave={handleSaveDetails}
+        onRemovePick={() =>
+          detailsModal.fight ? handleRemovePick(getFightId(detailsModal.fight)) : null
+        }
+        isLocked={locked}
       />
     </div>
   );

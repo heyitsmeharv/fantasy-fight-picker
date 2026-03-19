@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Upload, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
   createFighter,
   deleteFighter,
   fetchFighters,
+  importFighters,
   updateFighter,
 } from "../api/fighters";
 
@@ -36,7 +38,128 @@ const emptyForm = {
   displayWeightClass: "Roster",
 };
 
+const csvHeaders = [
+  "fighterId",
+  "slug",
+  "name",
+  "nickname",
+  "record",
+  "rank",
+  "reach",
+  "stance",
+  "sigStrikes",
+  "takedowns",
+  "imageUrl",
+  "displayWeightClass",
+  "aliases",
+];
+
 const normalizeSearch = (value) => String(value || "").toLowerCase().trim();
+
+const slugify = (value = "") =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+const parseCsv = (text) => {
+  const rows = [];
+  let current = "";
+  let row = [];
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(current);
+      current = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+
+      row.push(current);
+      rows.push(row);
+      row = [];
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.length > 0 || row.length > 0) {
+    row.push(current);
+    rows.push(row);
+  }
+
+  return rows
+    .map((entry) => entry.map((cell) => String(cell || "").trim()))
+    .filter((entry) => entry.some((cell) => cell !== ""));
+};
+
+const toObjectsFromCsv = (text) => {
+  const parsed = parseCsv(text);
+
+  if (!parsed.length) {
+    return [];
+  }
+
+  const headers = parsed[0].map((header) => header.trim());
+  const dataRows = parsed.slice(1);
+
+  return dataRows.map((cells) => {
+    const row = {};
+
+    headers.forEach((header, index) => {
+      row[header] = cells[index] ?? "";
+    });
+
+    return row;
+  });
+};
+
+const buildPreviewRows = (rows, existingFighters) => {
+  const byId = new Map(existingFighters.map((fighter) => [fighter.fighterId, fighter]));
+  const bySlug = new Map(
+    existingFighters
+      .filter((fighter) => fighter.slug)
+      .map((fighter) => [fighter.slug, fighter])
+  );
+
+  return rows.map((row, index) => {
+    const fighterId = String(row?.fighterId || "").trim();
+    const slug = slugify(row?.slug || row?.name || "");
+    const matched = (fighterId && byId.get(fighterId)) || (slug && bySlug.get(slug)) || null;
+
+    return {
+      rowNumber: index + 2,
+      action: matched ? "update" : "create",
+      fighterId: matched?.fighterId || fighterId || slug,
+      name: row?.name || "",
+      displayWeightClass: row?.displayWeightClass || "Roster",
+      rank: row?.rank || "Unranked",
+      raw: row,
+    };
+  });
+};
 
 const AdminFightersPage = () => {
   const navigate = useNavigate();
@@ -45,11 +168,16 @@ const AdminFightersPage = () => {
   const [fighters, setFighters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedFighterId, setSelectedFighterId] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [csvRows, setCsvRows] = useState([]);
+  const [csvPreview, setCsvPreview] = useState([]);
+  const [csvFileName, setCsvFileName] = useState("");
+  const [csvError, setCsvError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +254,8 @@ const AdminFightersPage = () => {
       stance: selectedFighter.stance || "",
       sigStrikes: selectedFighter.sigStrikes || "",
       takedowns: selectedFighter.takedowns || "",
-      imageUrl: selectedFighter.imageUrl || "",
+      // imageUrl: selectedFighter.imageUrl || "",
+      imageUrl: "",
       displayWeightClass: selectedFighter.displayWeightClass || "Roster",
     });
   }, [selectedFighter, selectedFighterId]);
@@ -228,6 +357,81 @@ const AdminFightersPage = () => {
     }
   };
 
+  const handleCsvFile = async (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const rows = toObjectsFromCsv(text);
+
+      if (!rows.length) {
+        setCsvRows([]);
+        setCsvPreview([]);
+        setCsvError("The file looks empty.");
+        return;
+      }
+
+      const hasNameHeader = Object.prototype.hasOwnProperty.call(rows[0], "name");
+
+      if (!hasNameHeader) {
+        setCsvRows([]);
+        setCsvPreview([]);
+        setCsvError(`CSV must include at least: ${csvHeaders.join(", ")}`);
+        return;
+      }
+
+      const preview = buildPreviewRows(rows, fighters);
+
+      setCsvFileName(file.name);
+      setCsvRows(rows);
+      setCsvPreview(preview);
+      setCsvError("");
+    } catch (error) {
+      console.error("CSV parse error", error);
+      setCsvRows([]);
+      setCsvPreview([]);
+      setCsvError("Could not parse that CSV file.");
+    }
+  };
+
+  const handleImport = async () => {
+    if (!csvRows.length) {
+      return;
+    }
+
+    try {
+      setImporting(true);
+
+      const result = await importFighters(csvRows);
+      const refreshed = await fetchFighters();
+
+      setFighters(refreshed);
+      setCsvRows([]);
+      setCsvPreview([]);
+      setCsvFileName("");
+      setCsvError("");
+
+      showToast({
+        title: "Fighters imported",
+        description: `${result.created} created, ${result.updated} updated.`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("CSV import error", error);
+      showToast({
+        title: "Could not import fighters",
+        description: error.message,
+        variant: "danger",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="border-white/10 bg-zinc-950/90 text-white">
@@ -249,7 +453,7 @@ const AdminFightersPage = () => {
             className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
             onClick={() => navigate("/fighters")}
           >
-            Open fighters page
+            Open public fighters page
           </Button>
 
           {selectedFighterId ? (
@@ -270,6 +474,97 @@ const AdminFightersPage = () => {
           </Button>
         </div>
       </div>
+
+      <Card className="border-white/10 bg-zinc-950/90 text-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <FileSpreadsheet className="h-5 w-5 text-[#d20a11]" />
+            CSV upload
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
+            <p className="font-semibold text-white">Expected headers</p>
+            <p className="mt-2 break-words text-slate-400">
+              {csvHeaders.join(", ")}
+            </p>
+            <p className="mt-3 text-slate-400">
+              Use <span className="text-white">aliases</span> as a pipe-separated field, for
+              example: <span className="text-white">The Eagle|Dagestani King</span>
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleCsvFile}
+              className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-full file:border-0 file:bg-[#d20a11] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#b2080e]"
+            />
+
+            <Button
+              className="rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
+              onClick={handleImport}
+              disabled={!csvRows.length || importing}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {importing ? "Importing..." : "Import fighters"}
+            </Button>
+          </div>
+
+          {csvFileName ? (
+            <Badge className="border border-white/10 bg-white/5 text-white hover:bg-white/5">
+              Previewing {csvFileName}
+            </Badge>
+          ) : null}
+
+          {csvError ? (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+              {csvError}
+            </div>
+          ) : null}
+
+          {csvPreview.length > 0 ? (
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03]">
+              <table className="min-w-full text-sm">
+                <thead className="border-b border-white/10 text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Row</th>
+                    <th className="px-4 py-3 text-left">Action</th>
+                    <th className="px-4 py-3 text-left">Name</th>
+                    <th className="px-4 py-3 text-left">Weight class</th>
+                    <th className="px-4 py-3 text-left">Rank</th>
+                    <th className="px-4 py-3 text-left">Resolved ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {csvPreview.map((row) => (
+                    <tr key={`${row.rowNumber}-${row.fighterId}`} className="border-b border-white/5">
+                      <td className="px-4 py-3 text-slate-300">{row.rowNumber}</td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          className={
+                            row.action === "update"
+                              ? "border border-amber-500/20 bg-amber-500/10 text-amber-200"
+                              : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+                          }
+                        >
+                          {row.action}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-white">{row.name}</td>
+                      <td className="px-4 py-3 text-slate-300">{row.displayWeightClass}</td>
+                      <td className="px-4 py-3 text-slate-300">{row.rank}</td>
+                      <td className="px-4 py-3 text-slate-400">{row.fighterId}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card className="border-white/10 bg-zinc-950/90 text-white">
         <CardHeader>

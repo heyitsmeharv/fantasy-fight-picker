@@ -1,6 +1,6 @@
 import MatchupRow from "./MatchupRow";
 
-const getFightId = (fight) => fight?.id ?? fight?.fightId ?? null;
+const getFightId = (fight) => fight?.fightId ?? fight?.id ?? null;
 
 const FightSection = ({
   title,

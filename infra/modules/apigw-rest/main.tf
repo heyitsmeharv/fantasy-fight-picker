@@ -142,6 +142,12 @@ resource "aws_api_gateway_resource" "admin_fighter_id" {
   path_part   = "{fighterId}"
 }
 
+resource "aws_api_gateway_resource" "admin_fighters_import" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.admin_fighters.id
+  path_part   = "import"
+}
+
 resource "aws_api_gateway_resource" "status" {
   rest_api_id = aws_api_gateway_rest_api.this.id
   parent_id   = aws_api_gateway_resource.admin_event_id.id
@@ -438,6 +444,23 @@ resource "aws_api_gateway_method" "admin_update_fighter" {
   request_parameters = {
     "method.request.path.fighterId" = true
   }
+}
+
+resource "aws_api_gateway_method" "admin_import_fighters" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.admin_fighters_import.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+}
+
+resource "aws_api_gateway_integration" "admin_import_fighters" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.admin_fighters_import.id
+  http_method             = aws_api_gateway_method.admin_import_fighters.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = local.lambda_invoke_uris["admin_import_fighters"]
 }
 
 resource "aws_api_gateway_integration" "admin_update_fighter" {
@@ -795,6 +818,14 @@ resource "aws_lambda_permission" "admin_delete_fighter" {
   source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
 }
 
+resource "aws_lambda_permission" "admin_import_fighters" {
+  statement_id  = "AllowApiGatewayInvokeAdminImportFighters"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["admin_import_fighters"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
 resource "aws_lambda_permission" "ensure_my_profile" {
   statement_id  = "AllowApiGatewayInvokeEnsureMyProfile"
   action        = "lambda:InvokeFunction"
@@ -831,6 +862,7 @@ resource "aws_api_gateway_deployment" "this" {
         aws_api_gateway_resource.admin_event_id.id,
         aws_api_gateway_resource.admin_fighters.id,
         aws_api_gateway_resource.admin_fighter_id.id,
+        aws_api_gateway_resource.admin_fighters_import.id,
         aws_api_gateway_resource.status.id,
         aws_api_gateway_resource.fights.id,
         aws_api_gateway_resource.fight_id.id,
@@ -860,6 +892,7 @@ resource "aws_api_gateway_deployment" "this" {
           aws_api_gateway_method.admin_create_fight.id,
           aws_api_gateway_method.admin_delete_fight.id,
           aws_api_gateway_method.admin_update_fight_result.id,
+          aws_api_gateway_method.admin_import_fighters.id,
           aws_api_gateway_method.ensure_my_profile.id,
           aws_api_gateway_method.admin_reorder_event_fights.id,
         ],
@@ -886,6 +919,7 @@ resource "aws_api_gateway_deployment" "this" {
           aws_api_gateway_integration.admin_create_fight.id,
           aws_api_gateway_integration.admin_delete_fight.id,
           aws_api_gateway_integration.admin_update_fight_result.id,
+          aws_api_gateway_integration.admin_import_fighters.id,
           aws_api_gateway_integration.ensure_my_profile.id,
           aws_api_gateway_integration.admin_reorder_event_fights.id,
         ],
@@ -922,6 +956,7 @@ resource "aws_api_gateway_deployment" "this" {
     aws_api_gateway_integration.admin_create_fight,
     aws_api_gateway_integration.admin_delete_fight,
     aws_api_gateway_integration.admin_update_fight_result,
+    aws_api_gateway_integration.admin_import_fighters,
     aws_api_gateway_integration.ensure_my_profile,
     aws_api_gateway_integration.admin_reorder_event_fights,
     aws_api_gateway_integration_response.options_200

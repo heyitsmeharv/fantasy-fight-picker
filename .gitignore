@@ -24,3 +24,7 @@ package-lock.json
 **/package-lock.json
 
 .env.local
+
+CONTEXT.md
+ufc_fighters.csv
+frontend/scripts

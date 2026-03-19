@@ -17,24 +17,27 @@ locals {
   })
 
   cors_resources = {
-    events         = aws_api_gateway_resource.events.id
-    event_id       = aws_api_gateway_resource.event_id.id
-    fighters       = aws_api_gateway_resource.fighters.id
-    fighter_id     = aws_api_gateway_resource.fighter_id.id
-    picks          = aws_api_gateway_resource.picks.id
-    me             = aws_api_gateway_resource.me.id
-    leaderboard    = aws_api_gateway_resource.leaderboard.id
-    league         = aws_api_gateway_resource.league.id
-    admin          = aws_api_gateway_resource.admin.id
-    admin_events   = aws_api_gateway_resource.admin_events.id
-    admin_event_id = aws_api_gateway_resource.admin_event_id.id
-    status         = aws_api_gateway_resource.status.id
-    fights         = aws_api_gateway_resource.fights.id
-    fight_id       = aws_api_gateway_resource.fight_id.id
-    result         = aws_api_gateway_resource.result.id
-    profiles       = aws_api_gateway_resource.profiles.id
-    profile_me     = aws_api_gateway_resource.profile_me.id
-    reorder        = aws_api_gateway_resource.reorder.id
+    events                = aws_api_gateway_resource.events.id
+    event_id              = aws_api_gateway_resource.event_id.id
+    fighters              = aws_api_gateway_resource.fighters.id
+    fighter_id            = aws_api_gateway_resource.fighter_id.id
+    picks                 = aws_api_gateway_resource.picks.id
+    me                    = aws_api_gateway_resource.me.id
+    leaderboard           = aws_api_gateway_resource.leaderboard.id
+    league                = aws_api_gateway_resource.league.id
+    admin                 = aws_api_gateway_resource.admin.id
+    admin_events          = aws_api_gateway_resource.admin_events.id
+    admin_event_id        = aws_api_gateway_resource.admin_event_id.id
+    admin_fighters        = aws_api_gateway_resource.admin_fighters.id,
+    admin_fighter_id      = aws_api_gateway_resource.admin_fighter_id.id,
+    admin_fighters_import = aws_api_gateway_resource.admin_fighters_import.id
+    status                = aws_api_gateway_resource.status.id
+    fights                = aws_api_gateway_resource.fights.id
+    fight_id              = aws_api_gateway_resource.fight_id.id
+    result                = aws_api_gateway_resource.result.id
+    profiles              = aws_api_gateway_resource.profiles.id
+    profile_me            = aws_api_gateway_resource.profile_me.id
+    reorder               = aws_api_gateway_resource.reorder.id
   }
 
   lambda_invoke_uris = {
