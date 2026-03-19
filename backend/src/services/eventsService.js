@@ -12,9 +12,57 @@ const normalizeEventStatus = (status) => {
   return ["open", "locked", "closed"].includes(normalized) ? normalized : "open";
 };
 
+const parseDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const isEventPastLock = (event, now = new Date()) => {
+  const lockTime = parseDate(event?.lockTime);
+
+  if (!lockTime) {
+    return false;
+  }
+
+  return lockTime.getTime() <= now.getTime();
+};
+
+export const getDerivedEventStatus = (event, now = new Date()) => {
+  const normalized = normalizeEventStatus(event?.status);
+
+  if (normalized === "closed") {
+    return "closed";
+  }
+
+  if (normalized === "locked") {
+    return "locked";
+  }
+
+  return isEventPastLock(event, now) ? "locked" : normalized;
+};
+
+export const withDerivedEventStatus = (event, now = new Date()) => {
+  if (!event) {
+    return null;
+  }
+
+  return {
+    ...event,
+    status: getDerivedEventStatus(event, now),
+  };
+};
+
 const buildEventSortKey = (event = {}) => {
   const timestamp =
-    event.lockTime || event.date || event.updatedAt || event.createdAt || "9999-12-31T23:59:59.999Z";
+    event.lockTime ||
+    event.date ||
+    event.updatedAt ||
+    event.createdAt ||
+    "9999-12-31T23:59:59.999Z";
 
   return `${timestamp}#${event.eventId}`;
 };
@@ -85,6 +133,34 @@ export const listOpenEvents = async () => {
         ExpressionAttributeValues: {
           ":open": "open",
           ":locked": "locked",
+        },
+      })
+    );
+
+    items.push(...(response.Items || []));
+    ExclusiveStartKey = response.LastEvaluatedKey;
+  } while (ExclusiveStartKey);
+
+  return items;
+};
+
+export const listEventsDueForLock = async (nowIso = new Date().toISOString()) => {
+  const items = [];
+  let ExclusiveStartKey;
+
+  do {
+    const response = await ddb.send(
+      new ScanCommand({
+        TableName: TABLES.EVENTS,
+        ExclusiveStartKey,
+        FilterExpression:
+          "#status = :open AND attribute_exists(lockTime) AND lockTime <= :now",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":open": "open",
+          ":now": nowIso,
         },
       })
     );

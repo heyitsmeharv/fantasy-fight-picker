@@ -1,5 +1,9 @@
 import { ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { getEvents, getEventById } from "../services/eventsService.js";
+import {
+  getEventById,
+  getEvents,
+  withDerivedEventStatus,
+} from "../services/eventsService.js";
 import { getFightsByEventId } from "../services/fightsService.js";
 import { ddb, TABLES } from "../services/ddb.js";
 import { getProfileNameMap } from "../services/profileService.js";
@@ -49,7 +53,7 @@ export const handler = async (event) => {
     const requestedEventId = query.eventId || null;
     const requestedOpponentId = query.opponentId || null;
 
-    const events = await getEvents();
+    const events = (await getEvents()).map((entry) => withDerivedEventStatus(entry));
     const eventMap = new Map(events.map((entry) => [entry.eventId, entry]));
     const fightsByEventId = new Map();
 
@@ -103,6 +107,7 @@ export const handler = async (event) => {
         date: entry.date || null,
         status: String(entry.status || "open").toLowerCase(),
       }));
+
     const selectedEventId = requestedEventId || resultEvents[0]?.eventId || null;
 
     if (!selectedEventId) {
@@ -110,7 +115,8 @@ export const handler = async (event) => {
     }
 
     const selectedEvent =
-      eventMap.get(selectedEventId) || (await getEventById(selectedEventId));
+      eventMap.get(selectedEventId) ||
+      withDerivedEventStatus(await getEventById(selectedEventId));
 
     if (!selectedEvent) {
       return notFound("Event not found");
@@ -141,11 +147,11 @@ export const handler = async (event) => {
       : [];
     const opponentCard = selectedOpponent
       ? opponentCards.find((entry) => entry.eventId === selectedEventId) || {
-        userId: selectedOpponent.userId,
-        eventId: selectedEventId,
-        selectedCount: 0,
-        picks: {},
-      }
+          userId: selectedOpponent.userId,
+          eventId: selectedEventId,
+          selectedCount: 0,
+          picks: {},
+        }
       : null;
 
     const fightRows = buildHeadToHeadRows({
@@ -162,20 +168,20 @@ export const handler = async (event) => {
 
     const opponentTotals = opponentCard
       ? calculateEventTotals({
-        card: opponentCard,
-        event: selectedEvent,
-        fights,
-      })
+          card: opponentCard,
+          event: selectedEvent,
+          fights,
+        })
       : {
-        totalPoints: 0,
-        correctPicks: 0,
-        scoredPicks: 0,
-        accuracy: 0,
-        selectedCount: 0,
-        totalFights: fights.length,
-        status: String(selectedEvent.status || "open").toLowerCase(),
-        picks: [],
-      };
+          totalPoints: 0,
+          correctPicks: 0,
+          scoredPicks: 0,
+          accuracy: 0,
+          selectedCount: 0,
+          totalFights: fights.length,
+          status: String(selectedEvent.status || "open").toLowerCase(),
+          picks: [],
+        };
 
     return ok({
       leaderboard,

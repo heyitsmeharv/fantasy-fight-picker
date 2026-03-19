@@ -1,4 +1,7 @@
-import { getEventById } from "../services/eventsService.js";
+import {
+  getDerivedEventStatus,
+  getEventById,
+} from "../services/eventsService.js";
 import { getFightsByEventId } from "../services/fightsService.js";
 import { saveUserEventPicks } from "../services/picksService.js";
 import { upsertProfileFromClaims } from "../services/profileService.js";
@@ -61,7 +64,7 @@ export const handler = async (event) => {
       return notFound("Event not found");
     }
 
-    const eventStatus = String(eventRecord.status || "").toLowerCase();
+    const eventStatus = getDerivedEventStatus(eventRecord);
 
     if (eventStatus !== "open") {
       return forbidden("This event is locked and cannot be edited");

@@ -164,7 +164,7 @@ module "lambda" {
       timeout     = 20
       memory_size = 256
     }
-    
+
     get_leaderboard = {
       handler     = "src/handlers/getLeaderboard.handler"
       description = "Return leaderboard standings"
@@ -185,6 +185,13 @@ module "lambda" {
       timeout     = 15
       memory_size = 256
     }
+
+    lock_due_events = {
+      handler     = "src/handlers/lockDueEvents.handler"
+      description = "Lock open events once their lock time has passed"
+      timeout     = 30
+      memory_size = 256
+    }
   }
 }
 
@@ -199,4 +206,16 @@ module "apigw_rest" {
   lambda_function_arns      = module.lambda.lambda_function_arns
   frontend_origin           = var.frontend_origin
   api_log_retention_in_days = var.api_log_retention_in_days
+}
+
+module "eventbridge_lock_due_events" {
+  source = "../../modules/eventbridge-scheduler"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  name                = "lock-due-events"
+  description         = "Automatically lock overdue Fantasy UFC events"
+  schedule_expression = var.event_lock_schedule_expression
+  target_lambda_arn   = module.lambda.lambda_function_arns["lock_due_events"]
 }

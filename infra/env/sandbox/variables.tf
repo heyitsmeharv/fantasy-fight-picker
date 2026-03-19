@@ -31,3 +31,8 @@ variable "api_log_retention_in_days" {
 variable "frontend_origin" {
   type = string
 }
+
+variable "event_lock_schedule_expression" {
+  type    = string
+  default = "rate(1 hour)"
+}

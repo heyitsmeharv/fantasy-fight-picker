@@ -1,4 +1,7 @@
-import { getEventById } from "../services/eventsService.js";
+import {
+  getEventById,
+  withDerivedEventStatus,
+} from "../services/eventsService.js";
 import { getFightsByEventId } from "../services/fightsService.js";
 import { badRequest, notFound, ok, serverError } from "../utils/response.js";
 
@@ -20,7 +23,7 @@ export const handler = async (event) => {
 
     return ok({
       event: {
-        ...eventRecord,
+        ...withDerivedEventStatus(eventRecord),
         fights,
       },
     });
