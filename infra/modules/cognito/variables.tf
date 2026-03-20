@@ -8,5 +8,5 @@ variable "environment" {
 
 variable "admin_group_name" {
   type    = string
-  default = "fantasy-ufc-admins"
+  default = "fantasy-fight-picker-admins"
 }

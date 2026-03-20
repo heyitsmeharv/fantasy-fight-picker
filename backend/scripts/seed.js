@@ -9,11 +9,11 @@ const REGION =
   "eu-west-2";
 
 const TABLES = {
-  EVENTS: process.env.EVENTS_TABLE_NAME || "fantasy-ufc-sandbox-events",
-  FIGHTS: process.env.FIGHTS_TABLE_NAME || "fantasy-ufc-sandbox-fights",
-  FIGHTERS: process.env.FIGHTERS_TABLE_NAME || "fantasy-ufc-sandbox-fighters",
-  PICKS: process.env.PICKS_TABLE_NAME || "fantasy-ufc-sandbox-picks",
-  PROFILES: process.env.PROFILES_TABLE_NAME || "fantasy-ufc-sandbox-profiles",
+  EVENTS: process.env.EVENTS_TABLE_NAME || "fantasy-fight-picker-sandbox-events",
+  FIGHTS: process.env.FIGHTS_TABLE_NAME || "fantasy-fight-picker-sandbox-fights",
+  FIGHTERS: process.env.FIGHTERS_TABLE_NAME || "fantasy-fight-picker-sandbox-fighters",
+  PICKS: process.env.PICKS_TABLE_NAME || "fantasy-fight-picker-sandbox-picks",
+  PROFILES: process.env.PROFILES_TABLE_NAME || "fantasy-fight-picker-sandbox-profiles",
 };
 
 const client = new DynamoDBClient({ region: REGION });

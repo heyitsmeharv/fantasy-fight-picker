@@ -1,6 +1,10 @@
 aws_region                   = "eu-west-2"
-project_name                 = "fantasy-ufc"
+project_name                 = "fantasy-fight-picker"
 environment                  = "sandbox"
 lambda_log_retention_in_days = 14
 api_log_retention_in_days    = 14
-frontend_origin              = "http://localhost:5173"
+cloudfront_price_class       = "PriceClass_100"
+frontend_bucket_name         = null
+frontend_domain_name         = null
+frontend_aliases             = []
+frontend_origin              = "https://d18kh2aenn5ywj.cloudfront.net"

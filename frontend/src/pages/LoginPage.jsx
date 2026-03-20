@@ -67,7 +67,7 @@ const LoginPage = () => {
             Log in
           </CardTitle>
           <p className="text-sm text-slate-400">
-            Sign in with your Fantasy UFC account.
+            Sign in with your FFP account.
           </p>
         </CardHeader>
 

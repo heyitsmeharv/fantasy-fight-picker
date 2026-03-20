@@ -1,4 +1,4 @@
-const STORAGE_KEY = "fantasy-ufc-auth-v5";
+const STORAGE_KEY = "fantasy-fight-picker";
 
 const COGNITO_REGION = import.meta.env.VITE_COGNITO_REGION;
 const COGNITO_USER_POOL_ID = import.meta.env.VITE_COGNITO_USER_POOL_ID;
@@ -10,7 +10,7 @@ const COGNITO_ENDPOINT = COGNITO_REGION
 const normalizeEmail = (email = "") => email.trim().toLowerCase();
 
 const getBaseNameFromEmail = (email = "") => {
-  const localPart = normalizeEmail(email).split("@")[0] || "Fantasy UFC User";
+  const localPart = normalizeEmail(email).split("@")[0] || "FFP User";
   return localPart
     .split(/[._-]/g)
     .filter(Boolean)
@@ -100,7 +100,7 @@ const buildSessionFromAuthResult = (authResult, fallback = {}) => {
       email,
       groups,
       isAdmin: groups.some(
-        (group) => group.toLowerCase() === "fantasy-ufc-admins"
+        (group) => group.toLowerCase() === "fantasy-fight-picker-admins"
       ),
     },
     accessToken,

@@ -28,3 +28,5 @@ package-lock.json
 CONTEXT.md
 ufc_fighters.csv
 frontend/scripts
+
+dist

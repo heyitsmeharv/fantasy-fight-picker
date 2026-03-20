@@ -64,5 +64,5 @@ resource "aws_cognito_user_pool_client" "web" {
 resource "aws_cognito_user_group" "admins" {
   user_pool_id = aws_cognito_user_pool.this.id
   name         = var.admin_group_name
-  description  = "Admin users for Fantasy UFC"
+  description  = "Admin users for Fantasy Fight Picker"
 }

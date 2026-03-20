@@ -10,7 +10,7 @@ import { useAuth } from "./AuthContext";
 import { useResults } from "./ResultsContext";
 import * as picksApi from "../api/picks";
 
-const STORAGE_PREFIX = "fantasy-ufc-picks-v5";
+const STORAGE_PREFIX = "fantasy-fight-picker";
 const PicksContext = createContext(null);
 
 const getStorageKey = (userId) => {

@@ -53,3 +53,19 @@ output "lambda_role_arn" {
 output "api_access_log_group_name" {
   value = module.apigw_rest.api_access_log_group_name
 }
+
+output "frontend_bucket_name" {
+  value = module.cloudfront.bucket_name
+}
+
+output "frontend_distribution_id" {
+  value = module.cloudfront.distribution_id
+}
+
+output "frontend_distribution_domain_name" {
+  value = module.cloudfront.distribution_domain_name
+}
+
+output "frontend_distribution_url" {
+  value = module.cloudfront.distribution_url
+}

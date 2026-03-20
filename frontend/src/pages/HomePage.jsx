@@ -191,7 +191,7 @@ const HomePage = () => {
             </h1>
 
             <p className="mt-4 max-w-xl text-base text-slate-300 md:text-lg">
-              Fantasy UFC turns every UFC card into a fantasy-style prediction game.
+              Fantasy Fight Picker turns every UFC card into a fantasy-style prediction game.
               Lock in your winners before the first bell and earn points for every
               sharp call.
             </p>

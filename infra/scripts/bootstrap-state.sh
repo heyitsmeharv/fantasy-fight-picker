@@ -35,7 +35,7 @@ fi
 REGION="${AWS_REGION:-eu-west-2}"
 GITHUB_ROLE_NAME="GitHubOIDCTerraformRole"
 GITHUB_REPO=""
-PROJECT_NAME="fantasy-ufc"
+PROJECT_NAME="fantasy-fight-picker"
 
 while [ "${1:-}" != "" ]; do
   case "$1" in

@@ -5,7 +5,7 @@ variable "aws_region" {
 
 variable "project_name" {
   type    = string
-  default = "fantasy-ufc"
+  default = "fantasy-fight-picker"
 }
 
 variable "environment" {
@@ -28,11 +28,31 @@ variable "api_log_retention_in_days" {
   default = 14
 }
 
+variable "event_lock_schedule_expression" {
+  type    = string
+  default = "rate(1 hour)"
+}
+
 variable "frontend_origin" {
   type = string
 }
 
-variable "event_lock_schedule_expression" {
+variable "frontend_bucket_name" {
   type    = string
-  default = "rate(1 hour)"
+  default = null
+}
+
+variable "frontend_domain_name" {
+  type    = string
+  default = null
+}
+
+variable "frontend_aliases" {
+  type    = list(string)
+  default = []
+}
+
+variable "cloudfront_price_class" {
+  type    = string
+  default = "PriceClass_100"
 }

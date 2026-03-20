@@ -55,14 +55,14 @@ module "lambda" {
 
     get_events = {
       handler     = "src/handlers/getEvents.handler"
-      description = "Return all Fantasy UFC events"
+      description = "Return all FFP events"
       timeout     = 10
       memory_size = 256
     }
 
     get_event_by_id = {
       handler     = "src/handlers/getEventById.handler"
-      description = "Return a single Fantasy UFC event and its fights"
+      description = "Return a single FFP event and its fights"
       timeout     = 10
       memory_size = 256
     }
@@ -215,7 +215,20 @@ module "eventbridge_lock_due_events" {
   environment  = var.environment
 
   name                = "lock-due-events"
-  description         = "Automatically lock overdue Fantasy UFC events"
+  description         = "Automatically lock overdue FFP events"
   schedule_expression = var.event_lock_schedule_expression
   target_lambda_arn   = module.lambda.lambda_function_arns["lock_due_events"]
+}
+
+module "cloudfront" {
+  source = "../../modules/cloudfront"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  name                = "frontend"
+  bucket_name         = var.frontend_bucket_name
+  domain_name         = var.frontend_domain_name
+  aliases             = var.frontend_aliases
+  price_class         = var.cloudfront_price_class
 }

@@ -44,7 +44,7 @@ resource "aws_api_gateway_account" "this" {
 
 resource "aws_api_gateway_rest_api" "this" {
   name        = "${local.prefix}-api"
-  description = "Fantasy UFC REST API"
+  description = "Fantasy Fight Picker REST API"
 
   endpoint_configuration {
     types = ["REGIONAL"]
@@ -926,10 +926,20 @@ resource "aws_api_gateway_deployment" "this" {
         [for item in aws_api_gateway_integration.options : item.id]
       )
 
+      integration_responses = [
+        for item in aws_api_gateway_integration_response.options_200 : item.id
+      ]
+
       gateway_responses = [
         aws_api_gateway_gateway_response.default_4xx.id,
         aws_api_gateway_gateway_response.default_5xx.id
       ]
+
+      cors = {
+        frontend_origin    = var.frontend_origin
+        cors_allow_headers = var.cors_allow_headers
+        cors_allow_methods = var.cors_allow_methods
+      }
     }))
   }
 

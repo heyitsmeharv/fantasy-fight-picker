@@ -14,9 +14,9 @@ const REGION =
   "eu-west-2";
 
 const TABLES = {
-  FIGHTS: process.env.FIGHTS_TABLE_NAME || "fantasy-ufc-sandbox-fights",
+  FIGHTS: process.env.FIGHTS_TABLE_NAME || "fantasy-fight-picker-sandbox-fights",
   FIGHTERS:
-    process.env.FIGHTERS_TABLE_NAME || "fantasy-ufc-sandbox-fighters",
+    process.env.FIGHTERS_TABLE_NAME || "fantasy-fight-picker-sandbox-fighters",
 };
 
 const args = process.argv.slice(2);

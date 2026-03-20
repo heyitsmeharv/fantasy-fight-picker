@@ -1,5 +1,5 @@
-const AUTH_STORAGE_KEY = "fantasy-ufc-auth-v5";
-const PICKS_STORAGE_PREFIX = "fantasy-ufc-picks-v5";
+const AUTH_STORAGE_KEY = "fantasy-fight-picker-auth-v5";
+const PICKS_STORAGE_PREFIX = "fantasy-fight-picker-picks-v5";
 
 export const clearClientState = () => {
   if (typeof window === "undefined") {

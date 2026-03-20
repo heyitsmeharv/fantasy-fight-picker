@@ -27,7 +27,7 @@ if [ -z "$ENVIRONMENT" ]; then
 fi
 
 REGION="${AWS_REGION:-eu-west-2}"
-PROJECT_NAME="fantasy-ufc"
+PROJECT_NAME="fantasy-fight-picker"
 
 while [ "${1:-}" != "" ]; do
   case "$1" in

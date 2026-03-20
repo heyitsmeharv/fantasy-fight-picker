@@ -59,7 +59,7 @@ const SignupPage = () => {
 
       showToast({
         title: "Account created",
-        description: `Welcome to Fantasy UFC, ${result.user.name}.`,
+        description: `Welcome to Fantasy Fight Picker, ${result.user.name}.`,
         variant: "success",
       });
 

@@ -12,8 +12,8 @@ REPO_ROOT="$(cd "$INFRA_DIR/.." && pwd)"
 
 SOURCE_DIR="$REPO_ROOT/backend"
 BUILD_DIR="$REPO_ROOT/build"
-TMP_DIR="$BUILD_DIR/.tmp/fantasy-ufc-backend"
-ARTIFACT_PATH="$BUILD_DIR/fantasy-ufc-backend.zip"
+TMP_DIR="$BUILD_DIR/.tmp/fantasy-fight-picker-backend"
+ARTIFACT_PATH="$BUILD_DIR/fantasy-fight-picker-backend.zip"
 
 log() {
   echo "[build-lambdas] $1"
