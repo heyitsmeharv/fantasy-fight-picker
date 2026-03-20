@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,30 @@ import { getOfficialResultLabel } from "../utils/scoring";
 
 const methodOptions = ["Decision", "KO/TKO", "Submission", "Disqualification"];
 
+const selectClass =
+  "h-11 w-full appearance-none rounded-2xl border border-white/10 bg-black/20 px-4 pr-11 text-sm font-medium text-white outline-none transition focus:border-white/20 focus:ring-2 focus:ring-white/10 disabled:cursor-not-allowed disabled:opacity-60";
+
+const getEventKey = (event) => String(event?.id || event?.eventId || "");
+
+const getEventOptionLabel = (event) => {
+  const baseName = event?.name || "Unknown event";
+  const rawTagline = event?.tagline?.trim();
+
+  if (!rawTagline) {
+    return baseName;
+  }
+
+  const vsMatch = rawTagline.match(
+    /([A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÿ'’.-]+)*)\s+vs\s+([A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÿ'’.-]+)*)/i
+  );
+
+  if (vsMatch) {
+    return `${baseName} • ${vsMatch[1]} vs ${vsMatch[2]}`;
+  }
+
+  return `${baseName} • ${rawTagline}`;
+};
+
 const AdminResultsPage = () => {
   const { events, updateFightResult, clearFightResult, updateEventStatus } = useResults();
   const { showToast } = useToast();
@@ -18,19 +43,24 @@ const AdminResultsPage = () => {
     return events.filter((event) => Array.isArray(event.fights));
   }, [events]);
 
-  const [selectedEventId, setSelectedEventId] = useState(resultEvents[0]?.id || "");
+  const [selectedEventId, setSelectedEventId] = useState(() => getEventKey(resultEvents[0]));
 
   const selectedEvent = useMemo(() => {
-    return resultEvents.find((event) => event.id === selectedEventId) || resultEvents[0];
+    return (
+      resultEvents.find((event) => getEventKey(event) === selectedEventId) ||
+      resultEvents[0] ||
+      null
+    );
   }, [resultEvents, selectedEventId]);
 
   const locked = isEventLocked(selectedEvent);
 
   const handleOutcomeChange = (fight, outcome, fighter = null) => {
     const existingResult = fight.result || {};
+    const eventKey = getEventKey(selectedEvent);
 
     if (outcome === "draw") {
-      updateFightResult(selectedEvent.id, fight.id, {
+      updateFightResult(eventKey, fight.id, {
         outcome: "draw",
         winnerId: null,
         winnerName: "Draw",
@@ -51,7 +81,7 @@ const AdminResultsPage = () => {
     }
 
     if (outcome === "disqualification" && fighter) {
-      updateFightResult(selectedEvent.id, fight.id, {
+      updateFightResult(eventKey, fight.id, {
         outcome: "disqualification",
         winnerId: fighter.id,
         winnerName: fighter.name,
@@ -69,7 +99,7 @@ const AdminResultsPage = () => {
     }
 
     if (outcome === "win" && fighter) {
-      updateFightResult(selectedEvent.id, fight.id, {
+      updateFightResult(eventKey, fight.id, {
         outcome: "win",
         winnerId: fighter.id,
         winnerName: fighter.name,
@@ -87,7 +117,7 @@ const AdminResultsPage = () => {
   };
 
   const handleMethodChange = (fight, method) => {
-    updateFightResult(selectedEvent.id, fight.id, {
+    updateFightResult(getEventKey(selectedEvent), fight.id, {
       outcome: fight.result?.outcome ?? "win",
       winnerId: fight.result?.winnerId ?? null,
       winnerName: fight.result?.winnerName ?? null,
@@ -102,7 +132,7 @@ const AdminResultsPage = () => {
   };
 
   const handleRoundChange = (fight, round) => {
-    updateFightResult(selectedEvent.id, fight.id, {
+    updateFightResult(getEventKey(selectedEvent), fight.id, {
       outcome: fight.result?.outcome ?? "win",
       winnerId: fight.result?.winnerId ?? null,
       winnerName: fight.result?.winnerName ?? null,
@@ -117,7 +147,7 @@ const AdminResultsPage = () => {
   };
 
   const handleClearResult = (fight) => {
-    clearFightResult(selectedEvent.id, fight.id);
+    clearFightResult(getEventKey(selectedEvent), fight.id);
 
     showToast({
       title: "Result cleared",
@@ -127,7 +157,7 @@ const AdminResultsPage = () => {
   };
 
   const handleStatusChange = (status) => {
-    updateEventStatus(selectedEvent.id, status);
+    updateEventStatus(getEventKey(selectedEvent), status);
 
     showToast({
       title: status === "locked" ? "Event locked" : "Event opened",
@@ -158,27 +188,49 @@ const AdminResultsPage = () => {
           <CardTitle className="text-xl">Choose event</CardTitle>
         </CardHeader>
 
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {resultEvents.map((event) => {
-              const active = event.id === selectedEventId;
+        <CardContent className="space-y-3">
+          <div className="max-w-xl">
+            <label
+              htmlFor="admin-results-event-select"
+              className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400"
+            >
+              Select card
+            </label>
 
-              return (
-                <Button
-                  key={event.id}
-                  variant={active ? "default" : "outline"}
-                  className={
-                    active
-                      ? "rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
-                      : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                  }
-                  onClick={() => setSelectedEventId(event.id)}
-                >
-                  {event.name}
-                </Button>
-              );
-            })}
+            <div className="relative mt-2">
+              <select
+                id="admin-results-event-select"
+                className={selectClass}
+                value={selectedEventId}
+                onChange={(event) => setSelectedEventId(event.target.value)}
+                disabled={resultEvents.length === 0}
+              >
+                <option value="" disabled>
+                  {resultEvents.length ? "Choose card" : "No cards available"}
+                </option>
+
+                {resultEvents.map((event) => {
+                  const eventKey = getEventKey(event);
+
+                  return (
+                    <option
+                      key={eventKey}
+                      value={eventKey}
+                      className="bg-zinc-950 text-white"
+                    >
+                      {getEventOptionLabel(event)}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
+
+          <p className="text-sm text-slate-400">
+            {resultEvents.length} event{resultEvents.length === 1 ? "" : "s"} available.
+          </p>
         </CardContent>
       </Card>
 

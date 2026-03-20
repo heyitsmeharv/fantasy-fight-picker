@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { ChevronDown, GripVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,32 @@ const emptyFightForm = {
   slotLabel: "Main Card",
   cardType: "main",
   order: "",
+};
+
+const selectClass =
+  "h-11 w-full appearance-none rounded-2xl border border-white/10 bg-black/20 px-4 pr-11 text-sm font-medium text-white outline-none transition focus:border-white/20 focus:ring-2 focus:ring-white/10 disabled:cursor-not-allowed disabled:opacity-60";
+
+const getEventKey = (event) => String(event?.id || event?.eventId || "");
+const getFightKey = (fight) => String(fight?.id || fight?.fightId || "");
+const getFighterKey = (fighter) => String(fighter?.id || fighter?.fighterId || "");
+
+const getEventOptionLabel = (event) => {
+  const baseName = event?.name || "Unknown event";
+  const rawTagline = event?.tagline?.trim();
+
+  if (!rawTagline) {
+    return baseName;
+  }
+
+  const vsMatch = rawTagline.match(
+    /([A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÿ'’.-]+)*)\s+vs\s+([A-Za-zÀ-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÿ'’.-]+)*)/i
+  );
+
+  if (vsMatch) {
+    return `${baseName} • ${vsMatch[1]} vs ${vsMatch[2]}`;
+  }
+
+  return `${baseName} • ${rawTagline}`;
 };
 
 const formatDateTimeDisplay = (value) => {
@@ -118,9 +144,7 @@ const sortFights = (fights = []) => {
       return aOrder - bOrder;
     }
 
-    return String(a.id || a.fightId || "").localeCompare(
-      String(b.id || b.fightId || "")
-    );
+    return getFightKey(a).localeCompare(getFightKey(b));
   });
 };
 
@@ -131,16 +155,21 @@ const reindexFights = (fights = []) =>
   }));
 
 const upsertEventInList = (events, nextEvent) => {
-  const existing = events.some((event) => event.id === nextEvent.id);
+  const nextEventKey = getEventKey(nextEvent);
+  const existing = events.some((event) => getEventKey(event) === nextEventKey);
 
   if (!existing) {
     return [...events, nextEvent];
   }
 
-  return events.map((event) => (event.id === nextEvent.id ? nextEvent : event));
+  return events.map((event) =>
+    getEventKey(event) === nextEventKey ? nextEvent : event
+  );
 };
 
 const SortableFightRow = ({ fight, onRemove, disabled = false }) => {
+  const fightKey = getFightKey(fight);
+
   const {
     attributes,
     listeners,
@@ -149,7 +178,7 @@ const SortableFightRow = ({ fight, onRemove, disabled = false }) => {
     transition,
     isDragging,
   } = useSortable({
-    id: fight.id,
+    id: fightKey,
     disabled,
   });
 
@@ -260,7 +289,7 @@ const AdminEventsPage = () => {
 
         setEvents(eventsResponse || []);
         setFighters(fightersResponse || []);
-        setSelectedEventId((current) => current || eventsResponse?.[0]?.id || "");
+        setSelectedEventId((current) => current || getEventKey(eventsResponse?.[0]) || "");
       } catch (error) {
         console.error("AdminEventsPage load error", error);
 
@@ -286,7 +315,7 @@ const AdminEventsPage = () => {
   }, [showToast]);
 
   const selectedEvent = useMemo(() => {
-    return events.find((event) => event.id === selectedEventId) || null;
+    return events.find((event) => getEventKey(event) === selectedEventId) || null;
   }, [events, selectedEventId]);
 
   useEffect(() => {
@@ -347,7 +376,7 @@ const AdminEventsPage = () => {
       };
 
       setEvents((current) => upsertEventInList(current, normalizedEvent));
-      setSelectedEventId(savedEvent.id);
+      setSelectedEventId(getEventKey(savedEvent));
 
       showToast({
         title: selectedEventId ? "Event updated" : "Event created",
@@ -406,7 +435,7 @@ const AdminEventsPage = () => {
 
       setEvents((current) =>
         current.map((entry) => {
-          if (entry.id !== selectedEventId) {
+          if (getEventKey(entry) !== selectedEventId) {
             return entry;
           }
 
@@ -445,8 +474,12 @@ const AdminEventsPage = () => {
       return;
     }
 
-    const oldIndex = selectedEventFights.findIndex((fight) => fight.id === active.id);
-    const newIndex = selectedEventFights.findIndex((fight) => fight.id === over.id);
+    const oldIndex = selectedEventFights.findIndex(
+      (fight) => getFightKey(fight) === String(active.id)
+    );
+    const newIndex = selectedEventFights.findIndex(
+      (fight) => getFightKey(fight) === String(over.id)
+    );
 
     if (oldIndex < 0 || newIndex < 0) {
       return;
@@ -457,7 +490,7 @@ const AdminEventsPage = () => {
 
     setEvents((current) =>
       current.map((entry) => {
-        if (entry.id !== selectedEventId) {
+        if (getEventKey(entry) !== selectedEventId) {
           return entry;
         }
 
@@ -472,14 +505,14 @@ const AdminEventsPage = () => {
       setReorderingFights(true);
       await reorderEventFights(
         selectedEventId,
-        reordered.map((fight) => fight.id)
+        reordered.map((fight) => getFightKey(fight))
       );
     } catch (error) {
       console.error("AdminEventsPage reorder fights error", error);
 
       setEvents((current) =>
         current.map((entry) => {
-          if (entry.id !== selectedEventId) {
+          if (getEventKey(entry) !== selectedEventId) {
             return entry;
           }
 
@@ -510,25 +543,31 @@ const AdminEventsPage = () => {
   };
 
   const confirmDeleteFight = async () => {
-    if (!selectedEventId || !fightToDelete?.id) {
+    if (!selectedEventId || !fightToDelete) {
+      return;
+    }
+
+    const fightKey = getFightKey(fightToDelete);
+
+    if (!fightKey) {
       return;
     }
 
     try {
       setDeletingFight(true);
 
-      await deleteFight(selectedEventId, fightToDelete.id);
+      await deleteFight(selectedEventId, fightKey);
 
       setEvents((current) =>
         current.map((entry) => {
-          if (entry.id !== selectedEventId) {
+          if (getEventKey(entry) !== selectedEventId) {
             return entry;
           }
 
           return {
             ...entry,
             fights: reindexFights(
-              (entry.fights || []).filter((fight) => fight.id !== fightToDelete.id)
+              (entry.fights || []).filter((fight) => getFightKey(fight) !== fightKey)
             ),
           };
         })
@@ -572,10 +611,12 @@ const AdminEventsPage = () => {
 
       await deleteEvent(selectedEventId);
 
-      const remainingEvents = events.filter((entry) => entry.id !== selectedEventId);
+      const remainingEvents = events.filter(
+        (entry) => getEventKey(entry) !== selectedEventId
+      );
 
       setEvents(remainingEvents);
-      setSelectedEventId(remainingEvents[0]?.id || "");
+      setSelectedEventId(getEventKey(remainingEvents[0]) || "");
       setFightForm(emptyFightForm);
       setDeleteEventOpen(false);
 
@@ -649,26 +690,43 @@ const AdminEventsPage = () => {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3">
-            {events.map((event) => {
-              const active = event.id === selectedEventId;
-              const fightCount = Array.isArray(event.fights) ? event.fights.length : 0;
+          <div className="max-w-xl">
+            <label
+              htmlFor="admin-events-event-select"
+              className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400"
+            >
+              Select card
+            </label>
 
-              return (
-                <Button
-                  key={event.id}
-                  variant={active ? "default" : "outline"}
-                  className={
-                    active
-                      ? "rounded-full bg-[#d20a11] text-white hover:bg-[#b2080e]"
-                      : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                  }
-                  onClick={() => setSelectedEventId(event.id)}
-                >
-                  {event.name} ({fightCount})
-                </Button>
-              );
-            })}
+            <div className="relative mt-2">
+              <select
+                id="admin-events-event-select"
+                className={selectClass}
+                value={selectedEventId}
+                onChange={(event) => setSelectedEventId(event.target.value)}
+                disabled={events.length === 0}
+              >
+                <option value="" disabled>
+                  {events.length ? "Choose card" : "No cards available"}
+                </option>
+
+                {events.map((event) => {
+                  const eventKey = getEventKey(event);
+
+                  return (
+                    <option
+                      key={eventKey}
+                      value={eventKey}
+                      className="bg-zinc-950 text-white"
+                    >
+                      {getEventOptionLabel(event)}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
 
           {selectedEvent ? (
@@ -832,11 +890,15 @@ const AdminEventsPage = () => {
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none transition focus:border-[#d20a11]/60"
               >
                 <option value="">Choose fighter</option>
-                {fighters.map((fighter) => (
-                  <option key={fighter.id} value={fighter.id}>
-                    {fighter.name}
-                  </option>
-                ))}
+                {fighters.map((fighter) => {
+                  const fighterKey = getFighterKey(fighter);
+
+                  return (
+                    <option key={fighterKey} value={fighterKey}>
+                      {fighter.name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -850,11 +912,15 @@ const AdminEventsPage = () => {
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none transition focus:border-[#d20a11]/60"
               >
                 <option value="">Choose fighter</option>
-                {fighters.map((fighter) => (
-                  <option key={fighter.id} value={fighter.id}>
-                    {fighter.name}
-                  </option>
-                ))}
+                {fighters.map((fighter) => {
+                  const fighterKey = getFighterKey(fighter);
+
+                  return (
+                    <option key={fighterKey} value={fighterKey}>
+                      {fighter.name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -953,13 +1019,13 @@ const AdminEventsPage = () => {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={selectedEventFights.map((fight) => fight.id)}
+                items={selectedEventFights.map((fight) => getFightKey(fight))}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-4">
                   {selectedEventFights.map((fight) => (
                     <SortableFightRow
-                      key={fight.id}
+                      key={getFightKey(fight)}
                       fight={fight}
                       onRemove={handleDeleteFight}
                       disabled={reorderingFights || deletingFight}

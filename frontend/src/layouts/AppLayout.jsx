@@ -23,6 +23,7 @@ const AppLayout = () => {
   const featuredEventCard = featuredEventId ? getEventCard(featuredEventId) : null;
   const selectedCount = featuredEventCard?.selectedCount ?? 0;
   const totalFights = Array.isArray(featuredEvent?.fights) ? featuredEvent.fights.length : 0;
+  const displayName = user?.name || "Account";
 
   const navItems = [
     { label: "Home", path: "/" },
@@ -50,41 +51,44 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-[#050608] text-slate-200">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(210,10,17,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.05),transparent_24%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(210,10,17,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.05),transparent_24%)]" />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        <header className="mb-8 rounded-[20px] border border-white/10 bg-black/80 px-5 py-4 backdrop-blur-sm">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-start gap-4">
-              <img
-                src={fantasyFightPickerLogo}
-                alt="Fantasy Fight Picker logo"
-                className="h-28 w-28 shrink-0 object-contain md:h-32 md:w-32"
-              />
+      <div className="relative mx-auto max-w-7xl px-4 py-5 md:px-6 md:py-6 lg:px-8">
+        <header className="mb-8 rounded-[22px] border border-white/10 bg-black/80 px-5 py-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-sm md:px-6">
+          <div className="flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(300px,380px)_1fr] xl:items-start xl:gap-8">
+            <div className="min-w-0">
+              <div className="flex items-center gap-4">
+                <img
+                  src={fantasyFightPickerLogo}
+                  alt="Fantasy Fight Picker logo"
+                  className="h-20 w-20 shrink-0 object-contain md:h-24 md:w-24"
+                />
 
-              <div className="min-w-0 pt-1">
-                <p className="text-[30px] font-bold uppercase tracking-[0.08em] leading-[0.95] text-white md:text-[38px]">
-                  Fantasy Fight
-                  <span className="block">Picker</span>
-                </p>
-                <p className="mt-3 max-w-[360px] text-base leading-7 text-slate-400">
-                  Fantasy-style predictions inspired by the FPL experience
-                </p>
+                <div className="min-w-0">
+                  <p className="text-[28px] font-bold uppercase leading-[0.94] tracking-[0.08em] text-white md:text-[36px]">
+                    Fantasy Fight
+                    <span className="block">Picker</span>
+                  </p>
+
+                  <p className="mt-2 max-w-[300px] text-sm leading-6 text-slate-400 md:text-[15px]">
+                    Fantasy-style predictions inspired by the FPL experience
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 xl:min-w-0 xl:items-end">
+            <div className="flex min-w-0 flex-col gap-4 xl:items-stretch">
               <div className="flex flex-wrap items-center gap-3 xl:justify-end">
                 {featuredEvent ? (
-                  <div className="flex max-w-[340px] items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
+                  <div className="flex min-w-[220px] max-w-[320px] items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2.5">
                     <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-sm font-medium leading-5 text-white">
+                      <p className="truncate text-sm font-medium text-white">
                         {featuredEvent.name}
                       </p>
                     </div>
 
                     <div className="shrink-0 text-right">
-                      <p className="text-sm font-medium text-white">
+                      <p className="text-sm font-semibold text-white">
                         {selectedCount}/{totalFights}
                       </p>
                       <p className="text-[11px] leading-none text-slate-400">picked</p>
@@ -94,9 +98,9 @@ const AppLayout = () => {
 
                 {isAuthenticated ? (
                   <>
-                    <div className="hidden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-slate-300 md:flex md:items-center md:gap-2">
+                    <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-300 md:flex">
                       <User className="h-4 w-4" />
-                      <span>{user?.name || "Account"}</span>
+                      <span className="max-w-[140px] truncate">{displayName}</span>
                     </div>
 
                     <Button
@@ -117,7 +121,7 @@ const AppLayout = () => {
                 )}
               </div>
 
-              <nav className="flex flex-wrap gap-2 xl:justify-end">
+              <nav className="flex flex-wrap items-center gap-2 xl:justify-start">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
 
@@ -136,7 +140,7 @@ const AppLayout = () => {
           </div>
         </header>
 
-        <main>
+        <main className="pb-8">
           <Outlet />
         </main>
       </div>
