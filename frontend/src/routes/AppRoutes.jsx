@@ -21,57 +21,29 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/upcoming" element={<UpcomingPage />} />
-        <Route path="/events/:eventId" element={<EventPage />} />
-        <Route path="/fighters" element={<FightersPage />} />
-        <Route path="/fighters/:fighterId" element={<FighterPage />} />
-        <Route path="/events/:eventId/compare/:fightId" element={<ComparePage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
-        <Route
-          path="/league"
-          element={
-            <ProtectedRoute>
-              <LeaguePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/my-picks"
-          element={
-            <ProtectedRoute>
-              <MyPicksPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/events"
-          element={
-            <ProtectedRoute adminOnly>
-              <AdminEventsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/fighters"
-          element={
-            <ProtectedRoute adminOnly>
-              <AdminFightersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/results"
-          element={
-            <ProtectedRoute adminOnly>
-              <AdminResultsPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Public — auth pages */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* Protected — all app routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/upcoming" element={<UpcomingPage />} />
+          <Route path="/events/:eventId" element={<EventPage />} />
+          <Route path="/fighters" element={<FightersPage />} />
+          <Route path="/fighters/:fighterId" element={<FighterPage />} />
+          <Route path="/events/:eventId/compare/:fightId" element={<ComparePage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/league" element={<LeaguePage />} />
+          <Route path="/my-picks" element={<MyPicksPage />} />
+          <Route element={<ProtectedRoute adminOnly />}>
+            <Route path="/admin/events" element={<AdminEventsPage />} />
+            <Route path="/admin/fighters" element={<AdminFightersPage />} />
+            <Route path="/admin/results" element={<AdminResultsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Route>
     </Routes>
   );
