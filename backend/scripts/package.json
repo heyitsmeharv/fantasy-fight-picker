@@ -1,0 +1,19 @@
+{
+  "name": "fantasy-fight-picker-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node seed.js",
+    "sync": "node scripts/sync.js",
+    "sync:upcoming": "node scripts/sync.js upcoming",
+    "sync:event": "node scripts/sync.js event",
+    "sync:results": "node scripts/sync.js results",
+    "sync:full": "node scripts/sync.js full"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.871.0",
+    "@aws-sdk/lib-dynamodb": "^3.871.0",
+    "dotenv": "^17.3.1"
+  }
+}

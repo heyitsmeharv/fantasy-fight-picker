@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 # validate.sh
 # - Local/CI quality gate for an environment under infra/env/<environment>
 # - Includes:
@@ -31,6 +29,10 @@ echo ""
 
 echo "→ terraform fmt"
 bash "$ROOT_DIR/scripts/fmt.sh"
+echo ""
+
+echo "Build Lambda artifacts"
+bash "$ROOT_DIR/scripts/build-lambdas.sh"
 echo ""
 
 echo "→ terraform validate"

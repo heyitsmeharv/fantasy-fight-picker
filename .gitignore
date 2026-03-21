@@ -18,6 +18,15 @@ backend.hcl
 # Provider lock file
 **/.terraform.lock.hcl
 
+/build/
 node_modules
 package-lock.json
 **/package-lock.json
+
+.env.local
+
+CONTEXT.md
+ufc_fighters.csv
+frontend/scripts
+
+dist

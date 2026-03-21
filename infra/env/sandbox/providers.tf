@@ -14,9 +14,14 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = var.project
+      Project     = var.project_name
       Environment = var.environment
       ManagedBy   = "terraform"
     }
   }
 }
+
+# provider "aws" {
+#   alias  = "use1"
+#   region = "us-east-1"
+# }

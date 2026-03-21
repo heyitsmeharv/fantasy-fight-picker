@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # plan.sh
 # - Creates a plan for a chosen deployable root under infra/env/<environment>.
@@ -25,6 +24,10 @@ fi
 
 echo "Plan"
 echo "Environment: $ENVIRONMENT"
+echo ""
+
+echo "Build Lambda artifacts"
+bash "$ROOT_DIR/scripts/build-lambdas.sh"
 echo ""
 
 cd "$ENV_DIR"
