@@ -1,7 +1,7 @@
 {
   "name": "fantasy-fight-picker",
   "description": "FFP is a prediction app built with React and AWS where users create an account, browse upcoming fight cards, research fighters, make picks before lock, and earn points based on prediction accuracy.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "Adam Harvey",
   "type": "module",
   "scripts": {
