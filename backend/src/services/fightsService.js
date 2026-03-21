@@ -1,4 +1,5 @@
 import {
+  BatchGetCommand,
   DeleteCommand,
   GetCommand,
   PutCommand,
@@ -6,6 +7,102 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES } from "./ddb.js";
+
+const getFightId = (fight) => fight?.fightId ?? fight?.id ?? null;
+const getFighterId = (fighter) => fighter?.fighterId ?? fighter?.id ?? null;
+
+const sortFights = (fights = []) => {
+  return [...fights].sort((a, b) => {
+    const aOrder = a.order ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = b.order ?? Number.MAX_SAFE_INTEGER;
+
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+
+    return String(getFightId(a) || "").localeCompare(String(getFightId(b) || ""));
+  });
+};
+
+const chunk = (items, size) => {
+  const chunks = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
+const batchGetFightersByIds = async (fighterIds = []) => {
+  const uniqueIds = [...new Set(fighterIds.map(String).filter(Boolean))];
+
+  if (!uniqueIds.length) {
+    return new Map();
+  }
+
+  const fighterMap = new Map();
+  const idChunks = chunk(uniqueIds, 100);
+
+  for (const ids of idChunks) {
+    const response = await ddb.send(
+      new BatchGetCommand({
+        RequestItems: {
+          [TABLES.FIGHTERS]: {
+            Keys: ids.map((fighterId) => ({ fighterId })),
+          },
+        },
+      })
+    );
+
+    const fighters = response?.Responses?.[TABLES.FIGHTERS] || [];
+
+    fighters.forEach((fighter) => {
+      if (fighter?.fighterId) {
+        fighterMap.set(String(fighter.fighterId), fighter);
+      }
+    });
+  }
+
+  return fighterMap;
+};
+
+const hydrateFightFighter = (fighterRef, fighterMap) => {
+  if (!fighterRef) {
+    return null;
+  }
+
+  const fighterId = fighterRef?.fighterId ?? fighterRef?.id ?? null;
+  const fighterRecord = fighterId ? fighterMap.get(String(fighterId)) : null;
+
+  return {
+    ...fighterRef,
+    ...(fighterRecord || {}),
+    id: fighterId,
+    fighterId,
+  };
+};
+
+const hydrateFights = async (fights = []) => {
+  if (!fights.length) {
+    return [];
+  }
+
+  const fighterIds = fights.flatMap((fight) => [
+    getFighterId(fight?.left),
+    getFighterId(fight?.right),
+  ]);
+
+  const fighterMap = await batchGetFightersByIds(fighterIds);
+
+  return fights.map((fight) => ({
+    ...fight,
+    fightId: getFightId(fight),
+    id: getFightId(fight),
+    left: hydrateFightFighter(fight.left, fighterMap),
+    right: hydrateFightFighter(fight.right, fighterMap),
+  }));
+};
 
 export const getFightsByEventId = async (eventId) => {
   if (!eventId) {
@@ -25,18 +122,8 @@ export const getFightsByEventId = async (eventId) => {
     })
   );
 
-  const fights = response.Items || [];
-
-  return fights.sort((a, b) => {
-    const aOrder = a.order ?? Number.MAX_SAFE_INTEGER;
-    const bOrder = b.order ?? Number.MAX_SAFE_INTEGER;
-
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-
-    return String(a.fightId || "").localeCompare(String(b.fightId || ""));
-  });
+  const fights = sortFights(response.Items || []);
+  return hydrateFights(fights);
 };
 
 export const getFightById = async (eventId, fightId) => {
@@ -54,15 +141,24 @@ export const getFightById = async (eventId, fightId) => {
     })
   );
 
-  return response.Item || null;
+  const fight = response.Item || null;
+
+  if (!fight) {
+    return null;
+  }
+
+  const [hydratedFight] = await hydrateFights([fight]);
+  return hydratedFight || null;
 };
 
 export const upsertFight = async (fight) => {
-  const existing = await getFightById(fight.eventId, fight.fightId);
+  const canonicalFightId = getFightId(fight);
+  const existing = await getFightById(fight.eventId, canonicalFightId);
 
   const item = {
     ...(existing || {}),
     ...fight,
+    fightId: canonicalFightId,
     createdAt: existing?.createdAt || fight.createdAt,
     updatedAt: fight.updatedAt,
     sourceRefs: {
@@ -78,7 +174,7 @@ export const upsertFight = async (fight) => {
     })
   );
 
-  return item;
+  return getFightById(item.eventId, item.fightId);
 };
 
 export const createFight = async (fight) => {
@@ -136,11 +232,7 @@ export const updateFightResult = async ({ eventId, fightId, result }) => {
     })
   );
 
-  return {
-    eventId,
-    fightId,
-    result,
-  };
+  return getFightById(eventId, fightId);
 };
 
 export const clearFightResult = async ({ eventId, fightId }) => {
@@ -161,11 +253,7 @@ export const clearFightResult = async ({ eventId, fightId }) => {
     })
   );
 
-  return {
-    eventId,
-    fightId,
-    result: null,
-  };
+  return getFightById(eventId, fightId);
 };
 
 export const updateFightOrder = async ({ eventId, fightId, order }) => {
@@ -197,7 +285,7 @@ export const updateFightOrder = async ({ eventId, fightId, order }) => {
 export const reorderFightsForEvent = async (eventId, fightIds = []) => {
   const fights = await getFightsByEventId(eventId);
 
-  const existingFightIds = fights.map((fight) => fight.fightId);
+  const existingFightIds = fights.map((fight) => String(fight.fightId));
   const incomingFightIds = fightIds.map(String);
 
   if (!incomingFightIds.length) {

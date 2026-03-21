@@ -221,7 +221,7 @@ const EventPage = () => {
     showToast({
       title: "Pick removed",
       description: "That fight is no longer selected.",
-      variant: "danger",
+      variant: "success",
     });
   };
 
