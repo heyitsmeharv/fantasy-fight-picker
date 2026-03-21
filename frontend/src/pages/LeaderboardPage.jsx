@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Swords } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
 import RankBadge from "../components/common/RankBadge";
 import { fetchLeaderboard } from "../api/results";
+
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
 
 const LeaderboardPage = () => {
   const navigate = useNavigate();
@@ -94,8 +103,10 @@ const LeaderboardPage = () => {
 
           <CardContent className="space-y-4">
             {loading ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-slate-400">
-                Loading leaderboard...
+              <div className="space-y-3">
+                {[0, 1, 2, 3].map((i) => (
+                  <SkeletonBlock key={i} className="h-16" />
+                ))}
               </div>
             ) : leaderboardEntries.length > 0 ? (
               leaderboardEntries.map((entry) => (
@@ -136,7 +147,13 @@ const LeaderboardPage = () => {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {recentEventReturns.length > 0 ? (
+            {loading ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <SkeletonBlock key={i} className="h-20" />
+                ))}
+              </div>
+            ) : recentEventReturns.length > 0 ? (
               recentEventReturns.map((result) => (
                 <div
                   key={result.eventId}
@@ -178,11 +195,7 @@ const LeaderboardPage = () => {
               ))
             ) : (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-slate-400">
-                {loading
-                  ? "Loading recent returns..."
-                  : error
-                    ? "Could not load recent event returns."
-                    : "No event returns yet."}
+                {error ? "Could not load recent event returns." : "No event returns yet."}
               </div>
             )}
           </CardContent>

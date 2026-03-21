@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import SectionHeading from "../components/common/SectionHeading";
@@ -41,6 +42,43 @@ const getWeightClassOrder = (weightClass) => {
   const index = weightClassOrder.indexOf(weightClass);
   return index === -1 ? 998 : index;
 };
+
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
+
+const FightersPageSkeleton = () => (
+  <motion.div
+    className="space-y-6"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.25 }}
+  >
+    <SectionHeading eyebrow="Roster" title="Fighters" />
+    <div className="space-y-6">
+      {[0, 1, 2].map((section) => (
+        <div
+          key={section}
+          className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 p-6"
+        >
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <SkeletonBlock className="h-7 w-40" />
+            <SkeletonBlock className="h-6 w-20" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <SkeletonBlock key={i} className="h-16" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </motion.div>
+);
 
 const FightersPage = () => {
   const navigate = useNavigate();
@@ -121,19 +159,14 @@ const FightersPage = () => {
       });
   }, [fighters]);
 
-  return (
-    <div className="space-y-6">
-      <SectionHeading eyebrow="Roster" title="Fighters" />
+  if (loading) {
+    return <FightersPageSkeleton />;
+  }
 
-      {loading ? (
-        <Card className="border-white/10 bg-zinc-950/90 text-white">
-          <CardContent className="p-8">
-            <p className="text-2xl font-semibold">Loading fighters...</p>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {!loading && error ? (
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <SectionHeading eyebrow="Roster" title="Fighters" />
         <Card className="border-white/10 bg-zinc-950/90 text-white">
           <CardContent className="p-8">
             <p className="text-2xl font-semibold">Could not load fighters</p>
@@ -142,61 +175,64 @@ const FightersPage = () => {
             </p>
           </CardContent>
         </Card>
-      ) : null}
+      </div>
+    );
+  }
 
-      {!loading && !error ? (
-        <div className="space-y-6">
-          {fightersByWeightClass.map(([weightClass, entries]) => (
-            <Card key={weightClass} className="border-white/10 bg-zinc-950/90 text-white">
-              <CardHeader>
-                <div className="flex items-center justify-between gap-4">
-                  <CardTitle className="text-xl uppercase tracking-[0.04em]">
-                    {weightClass}
-                  </CardTitle>
-                  <Badge className="border border-white/10 bg-white/5 text-white">
-                    {entries.length} fighters
-                  </Badge>
-                </div>
-              </CardHeader>
+  return (
+    <div className="space-y-6">
+      <SectionHeading eyebrow="Roster" title="Fighters" />
+      <div className="space-y-6">
+        {fightersByWeightClass.map(([weightClass, entries]) => (
+          <Card key={weightClass} className="border-white/10 bg-zinc-950/90 text-white">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="text-xl uppercase tracking-[0.04em]">
+                  {weightClass}
+                </CardTitle>
+                <Badge className="border border-white/10 bg-white/5 text-white">
+                  {entries.length} fighters
+                </Badge>
+              </div>
+            </CardHeader>
 
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {entries.map((fighter) => (
-                    <button
-                      key={fighter.fighterId}
-                      onClick={() => navigate(`/fighters/${fighter.fighterId}`)}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-[#d20a11]/50 hover:bg-white/[0.05]"
-                    >
-                      <div className="flex items-center gap-4">
-                        <FighterAvatar fighter={fighter} size="md" />
-                        <div className="min-w-0">
-                          <p className="truncate text-lg font-semibold text-white">
-                            {fighter.name}
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {entries.map((fighter) => (
+                  <button
+                    key={fighter.fighterId}
+                    onClick={() => navigate(`/fighters/${fighter.fighterId}`)}
+                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-[#d20a11]/50 hover:bg-white/[0.05]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <FighterAvatar fighter={fighter} size="md" />
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-semibold text-white">
+                          {fighter.name}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <FighterRankBadge rank={fighter.rank || "Unranked"} compact />
+                          <p className="truncate text-sm text-slate-400">
+                            {fighter.record || "Record TBC"}
                           </p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <FighterRankBadge rank={fighter.rank || "Unranked"} compact />
-                            <p className="truncate text-sm text-slate-400">
-                              {fighter.record || "Record TBC"}
-                            </p>
-                          </div>
                         </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
 
-          {fightersByWeightClass.length === 0 ? (
-            <Card className="border-white/10 bg-zinc-950/90 text-white">
-              <CardContent className="p-8">
-                <p className="text-2xl font-semibold">No fighters available yet</p>
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
-      ) : null}
+        {fightersByWeightClass.length === 0 ? (
+          <Card className="border-white/10 bg-zinc-950/90 text-white">
+            <CardContent className="p-8">
+              <p className="text-2xl font-semibold">No fighters available yet</p>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
     </div>
   );
 };

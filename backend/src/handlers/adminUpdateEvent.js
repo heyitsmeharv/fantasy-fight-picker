@@ -1,4 +1,5 @@
 import { getEventById, updateEvent } from "../services/eventsService.js";
+import { isAdminRequest } from "../auth/claims.js";
 import {
   badRequest,
   forbidden,
@@ -9,26 +10,6 @@ import {
 
 const ALLOWED_STATUSES = ["open", "locked", "closed"];
 
-const getClaims = (event) => {
-  return (
-    event?.requestContext?.authorizer?.claims ||
-    event?.requestContext?.authorizer?.jwt?.claims ||
-    {}
-  );
-};
-
-const isAdminRequest = (event) => {
-  const claims = getClaims(event);
-  const rawGroups = claims["cognito:groups"] ?? claims.groups ?? [];
-  const groups = Array.isArray(rawGroups)
-    ? rawGroups
-    : String(rawGroups)
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
-
-  return groups.some((group) => group.toLowerCase().includes("admin"));
-};
 
 const parseBody = (event) => {
   if (!event?.body) {

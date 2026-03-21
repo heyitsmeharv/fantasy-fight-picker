@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { ClipboardList, Trophy, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import SectionHeading from "../components/common/SectionHeading";
 import { usePicks } from "../context/PicksContext";
 import { useResults } from "../context/ResultsContext";
+import { formatDateTimeDisplay } from "../utils/format";
 import {
   buildFightLabel,
   calculateEventTotals,
@@ -41,10 +43,52 @@ const getPickResultClass = (result) => {
   return "border border-white/10 bg-white/5 text-slate-300";
 };
 
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
+
+const MyPicksPageSkeleton = () => (
+  <motion.div
+    className="space-y-6"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.25 }}
+  >
+    <SectionHeading eyebrow="Fantasy" title="My picks" />
+    <div className="grid gap-4 md:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <SkeletonBlock key={i} className="h-20" />
+      ))}
+    </div>
+    <div className="space-y-5">
+      {[0, 1].map((card) => (
+        <div
+          key={card}
+          className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 p-6"
+        >
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <SkeletonBlock className="h-7 w-48" />
+            <SkeletonBlock className="h-8 w-32" />
+          </div>
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonBlock key={i} className="h-16" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </motion.div>
+);
+
 const MyPicksPage = () => {
   const navigate = useNavigate();
   const { pickCards } = usePicks();
-  const { events } = useResults();
+  const { events, loading } = useResults();
 
   const overallTotals = useMemo(() => {
     return calculateOverallTotals(pickCards, events);
@@ -60,6 +104,10 @@ const MyPicksPage = () => {
       activeCards: overallTotals.activeCards,
     };
   }, [overallTotals]);
+
+  if (loading) {
+    return <MyPicksPageSkeleton />;
+  }
 
   if (pickCards.length === 0) {
     return (
@@ -83,28 +131,6 @@ const MyPicksPage = () => {
       </div>
     );
   }
-
-  const formatDateTimeDisplay = (value) => {
-    if (!value) {
-      return "TBC";
-    }
-
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZoneName: "short",
-    }).format(parsed);
-  };
 
   return (
     <div className="space-y-6">

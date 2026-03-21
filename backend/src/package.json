@@ -3,9 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.871.0",
     "@aws-sdk/lib-dynamodb": "^3.871.0",
     "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0"
   }
 }

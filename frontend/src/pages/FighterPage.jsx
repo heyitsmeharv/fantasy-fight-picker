@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Activity,
   Shield,
@@ -14,8 +15,8 @@ import FighterRankBadge from "../components/fighters/FighterRankBadge";
 import FighterStat from "../components/fighters/FighterStat";
 import { fetchFighterById } from "../api/fighters";
 import { useResults } from "../context/ResultsContext";
+import { getEventId } from "../utils/ids";
 
-const getEventId = (event) => event?.id ?? event?.eventId ?? null;
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
 
 const formatUpdatedAt = (value) => {
@@ -45,6 +46,56 @@ const formatMetric = (value, suffix = "") => {
 
 const buildAliasBadges = (aliases = [], fighterName = "") =>
   aliases.filter((alias) => alias && alias !== fighterName);
+
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
+
+const FighterPageSkeleton = () => (
+  <motion.div
+    className="space-y-6"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.25 }}
+  >
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90">
+      <div className="grid gap-0 lg:grid-cols-[340px_1fr]">
+        <div className="flex items-center justify-center border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
+          <SkeletonBlock className="h-44 w-44" />
+        </div>
+        <div className="space-y-4 p-6 lg:p-8">
+          <SkeletonBlock className="h-4 w-28" />
+          <SkeletonBlock className="h-10 w-64" />
+          <div className="flex gap-2">
+            <SkeletonBlock className="h-6 w-20" />
+            <SkeletonBlock className="h-6 w-24" />
+            <SkeletonBlock className="h-6 w-20" />
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonBlock key={i} className="h-14" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="space-y-6">
+        <SkeletonBlock className="h-56" />
+        <SkeletonBlock className="h-44" />
+      </div>
+      <div className="space-y-6">
+        <SkeletonBlock className="h-44" />
+        <SkeletonBlock className="h-56" />
+      </div>
+    </div>
+  </motion.div>
+);
 
 const FighterPage = () => {
   const { fighterId } = useParams();
@@ -93,13 +144,7 @@ const FighterPage = () => {
   );
 
   if (loading) {
-    return (
-      <Card className="border-white/10 bg-zinc-950/90 text-white">
-        <CardContent className="p-8">
-          <p className="text-2xl font-semibold">Loading fighter...</p>
-        </CardContent>
-      </Card>
-    );
+    return <FighterPageSkeleton />;
   }
 
   if (!fighter) {
@@ -148,7 +193,7 @@ const FighterPage = () => {
 
                   {fighter.nickname ? (
                     <p className="mt-2 text-base text-slate-400">
-                      “{fighter.nickname}”
+                      "{fighter.nickname}"
                     </p>
                   ) : null}
 

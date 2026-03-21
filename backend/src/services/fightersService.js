@@ -199,11 +199,9 @@ export const importFighters = async (rows = []) => {
   );
 
   const now = new Date().toISOString();
-  const results = [];
-  let created = 0;
-  let updated = 0;
 
-  for (const row of rows) {
+  // Build all payloads synchronously so map lookups reflect the pre-import state
+  const prepared = rows.map((row) => {
     const fighterIdFromRow = normalizeString(row?.fighterId);
     const slugFromRow = slugify(row?.slug || row?.name || "");
     const matchedExisting =
@@ -223,56 +221,69 @@ export const importFighters = async (rows = []) => {
       slugify(row?.name || fighterId) ||
       fighterId;
 
-    const payload = {
-      fighterId,
-      slug,
-      name: normalizeString(row?.name),
-      nickname: normalizeString(row?.nickname),
-      record: normalizeString(row?.record),
-      rank: normalizeString(row?.rank) || "Unranked",
-      reach: normalizeString(row?.reach),
-      legReach: normalizeString(row?.legReach),
-      stance: normalizeString(row?.stance),
-      sigStrikes: normalizeString(row?.sigStrikes),
-      sigStrikesAbsorbed: normalizeString(row?.sigStrikesAbsorbed),
-      sigStrikeAccuracy: normalizeString(row?.sigStrikeAccuracy),
-      sigStrikeDefense: normalizeString(row?.sigStrikeDefense),
-      takedowns: normalizeString(row?.takedowns),
-      takedownAccuracy: normalizeString(row?.takedownAccuracy),
-      takedownDefense: normalizeString(row?.takedownDefense),
-      submissionAvg: normalizeString(row?.submissionAvg),
-      winsByKnockout: normalizeString(row?.winsByKnockout),
-      winsBySubmission: normalizeString(row?.winsBySubmission),
-      firstRoundFinishes: normalizeString(row?.firstRoundFinishes),
-      imageUrl: normalizeString(row?.imageUrl),
-      displayWeightClass: normalizeString(row?.displayWeightClass) || "Roster",
-      aliases: normalizeAliases(row?.aliases),
-      sourceRefs: {
-        ...(matchedExisting?.sourceRefs || {}),
-        provider: "manual",
+    return {
+      isUpdate: !!matchedExisting,
+      payload: {
+        fighterId,
+        slug,
+        name: normalizeString(row?.name),
+        nickname: normalizeString(row?.nickname),
+        record: normalizeString(row?.record),
+        rank: normalizeString(row?.rank) || "Unranked",
+        reach: normalizeString(row?.reach),
+        legReach: normalizeString(row?.legReach),
+        stance: normalizeString(row?.stance),
+        sigStrikes: normalizeString(row?.sigStrikes),
+        sigStrikesAbsorbed: normalizeString(row?.sigStrikesAbsorbed),
+        sigStrikeAccuracy: normalizeString(row?.sigStrikeAccuracy),
+        sigStrikeDefense: normalizeString(row?.sigStrikeDefense),
+        takedowns: normalizeString(row?.takedowns),
+        takedownAccuracy: normalizeString(row?.takedownAccuracy),
+        takedownDefense: normalizeString(row?.takedownDefense),
+        submissionAvg: normalizeString(row?.submissionAvg),
+        winsByKnockout: normalizeString(row?.winsByKnockout),
+        winsBySubmission: normalizeString(row?.winsBySubmission),
+        firstRoundFinishes: normalizeString(row?.firstRoundFinishes),
+        imageUrl: normalizeString(row?.imageUrl),
+        displayWeightClass: normalizeString(row?.displayWeightClass) || "Roster",
+        aliases: normalizeAliases(row?.aliases),
+        sourceRefs: {
+          ...(matchedExisting?.sourceRefs || {}),
+          provider: "manual",
+        },
+        createdAt: matchedExisting?.createdAt || now,
+        updatedAt: now,
       },
-      createdAt: matchedExisting?.createdAt || now,
-      updatedAt: now,
     };
+  });
 
-    const saved = await upsertFighter(payload);
+  // Run upserts in concurrent batches of 10
+  const BATCH_SIZE = 10;
+  const savedItems = [];
 
-    if (matchedExisting) {
+  for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
+    const batch = prepared.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(({ payload }) => upsertFighter(payload))
+    );
+    savedItems.push(...batchResults);
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  const results = prepared.map(({ isUpdate }, index) => {
+    if (isUpdate) {
       updated += 1;
     } else {
       created += 1;
     }
 
-    existingById.set(saved.fighterId, saved);
-    if (saved.slug) {
-      existingBySlug.set(saved.slug, saved);
-    }
-
-    results.push({
-      action: matchedExisting ? "update" : "create",
-      fighter: saved,
-    });
-  }
+    return {
+      action: isUpdate ? "update" : "create",
+      fighter: savedItems[index],
+    };
+  });
 
   return {
     created,

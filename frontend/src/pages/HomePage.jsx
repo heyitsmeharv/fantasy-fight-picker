@@ -11,8 +11,8 @@ import RankBadge from "../components/common/RankBadge";
 import { fetchLeaderboard } from "../api/results";
 import { useResults } from "../context/ResultsContext";
 import { isEventLocked } from "../utils/event";
-
-const getEventId = (event) => event?.id ?? event?.eventId ?? null;
+import { getEventId } from "../utils/ids";
+import { formatDateTimeDisplay } from "../utils/format";
 
 const formatFighterName = (name) => {
   if (!name || typeof name !== "string") {
@@ -45,27 +45,50 @@ const formatDateDisplay = (value) => {
   }).format(parsed);
 };
 
-const formatDateTimeDisplay = (value) => {
-  if (!value) {
-    return "TBC";
-  }
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
 
-  const parsed = new Date(value);
+const HomePageSkeleton = () => (
+  <div className="space-y-8">
+    <motion.div
+      className="overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(9,9,11,1),rgba(3,4,6,1))] p-6 shadow-2xl shadow-black/40 md:p-8"
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+        <div className="space-y-5">
+          <div className="flex gap-2">
+            <SkeletonBlock className="h-6 w-32" />
+            <SkeletonBlock className="h-6 w-24" />
+          </div>
+          <SkeletonBlock className="h-4 w-36" />
+          <SkeletonBlock className="h-20 w-full" />
+          <SkeletonBlock className="h-12 w-3/4" />
+          <div className="flex gap-3">
+            <SkeletonBlock className="h-10 w-44" />
+            <SkeletonBlock className="h-10 w-36" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonBlock key={i} className="h-16" />
+            ))}
+          </div>
+        </div>
+        <SkeletonBlock className="h-72 self-start" />
+      </div>
+    </motion.div>
 
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZoneName: "short",
-  }).format(parsed);
-};
+    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <SkeletonBlock className="h-72" />
+      <SkeletonBlock className="h-72" />
+    </div>
+  </div>
+);
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -135,13 +158,7 @@ const HomePage = () => {
   }, [event]);
 
   if (loading && !event) {
-    return (
-      <Card className="border-white/10 bg-zinc-950/90 text-white">
-        <CardContent className="p-8">
-          <p className="text-2xl font-semibold">Loading featured event...</p>
-        </CardContent>
-      </Card>
-    );
+    return <HomePageSkeleton />;
   }
 
   if (!event) {

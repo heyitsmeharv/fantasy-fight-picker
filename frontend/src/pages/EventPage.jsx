@@ -17,16 +17,60 @@ import { usePicks } from "../context/PicksContext";
 import { useToast } from "../context/ToastContext";
 import { useResults } from "../context/ResultsContext";
 import { getEventStatusLabel, isEventLocked } from "../utils/event";
+import { getEventId, getFightId, getFighterId } from "../utils/ids";
+import { formatDateTimeDisplay } from "../utils/format";
 
-const getEventId = (event) => event?.eventId ?? event?.id ?? null;
-const getFightId = (fight) => fight?.fightId ?? fight?.id ?? null;
-const getFighterId = (fighter) => fighter?.fighterId ?? fighter?.id ?? null;
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
+
+const EventPageSkeleton = () => (
+  <motion.div
+    className="space-y-6"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.25 }}
+  >
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(10,10,10,1),rgba(3,4,6,1))] p-6 md:p-8">
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <SkeletonBlock className="h-6 w-16" />
+            <SkeletonBlock className="h-6 w-28" />
+          </div>
+          <SkeletonBlock className="h-11 w-3/4" />
+          <SkeletonBlock className="h-4 w-1/2" />
+          <SkeletonBlock className="h-14 w-80 max-w-full" />
+          <div className="mt-2 grid grid-cols-3 gap-3">
+            {[0, 1, 2].map((i) => (
+              <SkeletonBlock key={i} className="h-16" />
+            ))}
+          </div>
+        </div>
+        <SkeletonBlock className="h-44 self-start" />
+      </div>
+    </div>
+
+    {[0, 1].map((section) => (
+      <div key={section} className="space-y-3">
+        <SkeletonBlock className="h-8 w-36" />
+        {[0, 1, 2, 3].map((i) => (
+          <SkeletonBlock key={i} className="h-20" />
+        ))}
+      </div>
+    ))}
+  </motion.div>
+);
 
 const EventPage = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { events } = useResults();
+  const { events, loading } = useResults();
 
   const event = useMemo(() => {
     return events.find((entry) => getEventId(entry) === eventId) || null;
@@ -45,6 +89,10 @@ const EventPage = () => {
     fight: null,
     fighter: null,
   });
+
+  if (loading) {
+    return <EventPageSkeleton />;
+  }
 
   if (!event || !Array.isArray(event.fights)) {
     return (
@@ -103,28 +151,6 @@ const EventPage = () => {
     if (resolvedEventId && resolvedFightId) {
       navigate(`/events/${resolvedEventId}/compare/${resolvedFightId}`);
     }
-  };
-
-  const formatDateTimeDisplay = (value) => {
-    if (!value) {
-      return "TBC";
-    }
-
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZoneName: "short",
-    }).format(parsed);
   };
 
   const handlePick = (fightId, fighterId) => {
@@ -206,7 +232,7 @@ const EventPage = () => {
     if (locked) {
       showToast({
         title: "Card locked",
-        description: "Locked picks can’t be removed.",
+        description: "Locked picks can't be removed.",
         variant: "danger",
       });
       return;

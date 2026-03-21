@@ -1,9 +1,11 @@
 import {
   BatchGetCommand,
+  BatchWriteCommand,
   DeleteCommand,
   GetCommand,
   PutCommand,
   QueryCommand,
+  TransactWriteCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES } from "./ddb.js";
@@ -174,7 +176,8 @@ export const upsertFight = async (fight) => {
     })
   );
 
-  return getFightById(item.eventId, item.fightId);
+  const [hydrated] = await hydrateFights([item]);
+  return hydrated || null;
 };
 
 export const createFight = async (fight) => {
@@ -201,14 +204,25 @@ export const deleteFight = async ({ eventId, fightId }) => {
 export const deleteFightsByEventId = async (eventId) => {
   const fights = await getFightsByEventId(eventId);
 
-  await Promise.all(
-    fights.map((fight) =>
-      deleteFight({
-        eventId,
-        fightId: fight.fightId,
+  if (!fights.length) {
+    return 0;
+  }
+
+  const deleteRequests = fights.map((fight) => ({
+    DeleteRequest: {
+      Key: { eventId, fightId: fight.fightId },
+    },
+  }));
+
+  for (const requestChunk of chunk(deleteRequests, 25)) {
+    await ddb.send(
+      new BatchWriteCommand({
+        RequestItems: {
+          [TABLES.FIGHTS]: requestChunk,
+        },
       })
-    )
-  );
+    );
+  }
 
   return fights.length;
 };
@@ -309,14 +323,23 @@ export const reorderFightsForEvent = async (eventId, fightIds = []) => {
     }
   }
 
-  await Promise.all(
-    incomingFightIds.map((fightId, index) =>
-      updateFightOrder({
-        eventId,
-        fightId,
-        order: index + 1,
-      })
-    )
+  const now = new Date().toISOString();
+
+  await ddb.send(
+    new TransactWriteCommand({
+      TransactItems: incomingFightIds.map((fightId, index) => ({
+        Update: {
+          TableName: TABLES.FIGHTS,
+          Key: { eventId, fightId },
+          UpdateExpression: "SET #order = :order, updatedAt = :updatedAt",
+          ExpressionAttributeNames: { "#order": "order" },
+          ExpressionAttributeValues: {
+            ":order": index + 1,
+            ":updatedAt": now,
+          },
+        },
+      })),
+    })
   );
 
   return getFightsByEventId(eventId);

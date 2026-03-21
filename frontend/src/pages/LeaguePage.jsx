@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { ChevronDown, Swords, Target, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,37 @@ const emptyTotals = {
   totalFights: 0,
   accuracy: 0,
 };
+
+const SkeletonBlock = ({ className }) => (
+  <motion.div
+    className={`rounded-2xl bg-white/[0.06] ${className}`}
+    animate={{ opacity: [0.3, 0.7, 0.3] }}
+    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+  />
+);
+
+const LeaguePageSkeleton = () => (
+  <motion.div
+    className="space-y-6"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.25 }}
+  >
+    <SectionHeading eyebrow="League" title="Head-to-head and standings" />
+    <div className="grid gap-4 md:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <SkeletonBlock key={i} className="h-20" />
+      ))}
+    </div>
+    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <SkeletonBlock className="h-96" />
+      <div className="space-y-6">
+        <SkeletonBlock className="h-44" />
+        <SkeletonBlock className="h-64" />
+      </div>
+    </div>
+  </motion.div>
+);
 
 const LeaguePage = () => {
   const [leagueData, setLeagueData] = useState(null);
@@ -162,14 +194,7 @@ const LeaguePage = () => {
   }, [selectedOpponent, yourTotals.totalPoints, opponentTotals.totalPoints]);
 
   if (loading && !leagueData) {
-    return (
-      <div className="space-y-6">
-        <SectionHeading eyebrow="League" title="Head-to-head and standings" />
-        <Card className="border-white/10 bg-zinc-950/90 text-white">
-          <CardContent className="p-8 text-slate-400">Loading league view...</CardContent>
-        </Card>
-      </div>
-    );
+    return <LeaguePageSkeleton />;
   }
 
   if (error) {

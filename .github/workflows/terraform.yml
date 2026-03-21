@@ -20,11 +20,42 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AWS_REGION: "eu-west-2"
+  AWS_REGION: eu-west-2
+  NODE_VERSION: "22"
 
 jobs:
+  ci:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies
+        working-directory: backend/src
+        run: npm install
+
+      - name: Test backend
+        working-directory: backend/src
+        run: npm test
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test
+
   plan:
     name: Validate + Plan (${{ matrix.environment }})
+    needs: ci
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     environment: ${{ matrix.environment }}
@@ -38,6 +69,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -75,6 +111,7 @@ jobs:
 
   apply:
     name: Apply (${{ inputs.environment }})
+    needs: ci
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
@@ -82,6 +119,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -101,6 +143,21 @@ jobs:
           curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
           tflint --version
 
+      # Build the frontend before touching infrastructure so a broken build
+      # fails fast. VITE_* vars are environment secrets baked in at build time.
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_COGNITO_REGION: ${{ secrets.VITE_COGNITO_REGION }}
+          VITE_COGNITO_USER_POOL_ID: ${{ secrets.VITE_COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID: ${{ secrets.VITE_COGNITO_CLIENT_ID }}
+
       - name: Validate (fmt + validate + tflint)
         run: bash -euo pipefail infra/scripts/validate.sh ${{ inputs.environment }}
 
@@ -112,3 +169,21 @@ jobs:
 
       - name: Apply
         run: bash -euo pipefail infra/scripts/apply.sh ${{ inputs.environment }}
+
+      # Upload Vite-hashed assets (JS/CSS/images) with a long-lived cache.
+      # index.html is excluded here and uploaded separately with no-cache so
+      # browsers always fetch the latest entry point referencing the new assets.
+      - name: Sync frontend assets to S3
+        run: |
+          aws s3 sync frontend/dist "s3://${{ vars.FRONTEND_BUCKET_NAME }}" \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html"
+          aws s3 cp frontend/dist/index.html "s3://${{ vars.FRONTEND_BUCKET_NAME }}/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.FRONTEND_DISTRIBUTION_ID }}" \
+            --paths "/*"
