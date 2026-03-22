@@ -445,7 +445,7 @@ const LeaguePage = () => {
                       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
                           <p className="font-semibold text-white">
-                            {fight.left?.name} vs {fight.right?.name}
+                            {fight.fightLabel}
                           </p>
                           <p className="text-sm text-slate-400">
                             {fight.weightClass} • {fight.slotLabel}
