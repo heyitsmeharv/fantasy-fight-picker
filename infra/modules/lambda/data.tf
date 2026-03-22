@@ -32,6 +32,7 @@ data "aws_iam_policy_document" "lambda_role_policy" {
     actions = [
       "dynamodb:GetItem",
       "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
       "dynamodb:DeleteItem",
