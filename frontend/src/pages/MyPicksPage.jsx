@@ -205,8 +205,11 @@ const MyPicksPage = () => {
 
                     {eventTotals.scoredPicks > 0 ? (
                       <>
-                        <Badge className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-200">
-                          +{eventTotals.totalPoints} pts
+                        <Badge className={eventTotals.totalPoints > 0
+                          ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+                          : "border border-white/10 bg-white/5 text-white"
+                        }>
+                          {eventTotals.totalPoints > 0 ? `+${eventTotals.totalPoints}` : "0"} pts
                         </Badge>
                         <Badge className="border border-white/10 bg-white/5 text-white">
                           {eventTotals.correctPicks}/{eventTotals.scoredPicks} correct

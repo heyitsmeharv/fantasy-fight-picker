@@ -200,9 +200,7 @@ export const clearFightResult = async (eventId, fightId) => {
 };
 
 export const fetchLeaderboard = async () => {
-  const response = await client.get("/leaderboard", {
-    auth: false,
-  });
+  const response = await client.get("/leaderboard");
 
   return {
     ...response,

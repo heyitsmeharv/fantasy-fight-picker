@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   closestCenter,
@@ -164,6 +164,104 @@ const upsertEventInList = (events, nextEvent) => {
 
   return events.map((event) =>
     getEventKey(event) === nextEventKey ? nextEvent : event
+  );
+};
+
+const FighterSearch = ({ label, value, onChange, fighters }) => {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const selected = fighters.find((f) => getFighterKey(f) === value) || null;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return fighters.slice(0, 40);
+    return fighters.filter((f) => f.name?.toLowerCase().includes(q)).slice(0, 40);
+  }, [query, fighters]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const handleSelect = (fighter) => {
+    onChange(getFighterKey(fighter));
+    setOpen(false);
+    setQuery("");
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange("");
+    setQuery("");
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className="mb-2 block text-sm font-medium text-white">{label}</label>
+      <div
+        className="flex h-11 w-full cursor-pointer items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 text-sm text-white transition focus-within:border-white/20"
+        onClick={() => { setOpen((o) => !o); setQuery(""); }}
+      >
+        <span className={selected ? "text-white" : "text-slate-500"}>
+          {selected ? selected.name : "Choose fighter"}
+        </span>
+        {selected ? (
+          <button
+            type="button"
+            className="ml-2 text-slate-400 hover:text-white"
+            onClick={handleClear}
+            aria-label="Clear"
+          >
+            ✕
+          </button>
+        ) : (
+          <ChevronDown className="h-4 w-4 text-slate-400" />
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-xl">
+          <div className="p-2">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search fighters..."
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-white/20"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <ul className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-slate-500">No fighters found</li>
+            ) : (
+              filtered.map((fighter) => {
+                const key = getFighterKey(fighter);
+                return (
+                  <li
+                    key={key}
+                    className={`cursor-pointer px-4 py-2.5 text-sm transition hover:bg-white/10 ${value === key ? "text-[#d20a11]" : "text-white"}`}
+                    onMouseDown={() => handleSelect(fighter)}
+                  >
+                    {fighter.name}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -880,49 +978,19 @@ const AdminEventsPage = () => {
 
         <CardContent>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleAddFight}>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-white">Left fighter</label>
-              <select
-                value={fightForm.leftFighterId}
-                onChange={(event) =>
-                  setFightForm((current) => ({ ...current, leftFighterId: event.target.value }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none transition focus:border-[#d20a11]/60"
-              >
-                <option value="">Choose fighter</option>
-                {fighters.map((fighter) => {
-                  const fighterKey = getFighterKey(fighter);
+            <FighterSearch
+              label="Left fighter"
+              value={fightForm.leftFighterId}
+              onChange={(id) => setFightForm((current) => ({ ...current, leftFighterId: id }))}
+              fighters={fighters}
+            />
 
-                  return (
-                    <option key={fighterKey} value={fighterKey}>
-                      {fighter.name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-white">Right fighter</label>
-              <select
-                value={fightForm.rightFighterId}
-                onChange={(event) =>
-                  setFightForm((current) => ({ ...current, rightFighterId: event.target.value }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none transition focus:border-[#d20a11]/60"
-              >
-                <option value="">Choose fighter</option>
-                {fighters.map((fighter) => {
-                  const fighterKey = getFighterKey(fighter);
-
-                  return (
-                    <option key={fighterKey} value={fighterKey}>
-                      {fighter.name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+            <FighterSearch
+              label="Right fighter"
+              value={fightForm.rightFighterId}
+              onChange={(id) => setFightForm((current) => ({ ...current, rightFighterId: id }))}
+              fighters={fighters}
+            />
 
             <div>
               <label className="mb-2 block text-sm font-medium text-white">Weight class</label>
