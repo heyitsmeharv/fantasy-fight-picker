@@ -462,6 +462,11 @@ const HomePage = () => {
           </CardContent>
         </Card>
       </section>
+
+      <p className="text-center text-xs text-slate-600">
+        Fantasy Fight Picker is an unofficial fan project not affiliated with, endorsed by, or
+        sponsored by UFC or Zuffa LLC.
+      </p>
     </div>
   );
 };

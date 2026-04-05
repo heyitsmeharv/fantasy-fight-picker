@@ -15,8 +15,7 @@ const FighterAvatar = ({ fighter, size = "md", className = "" }) => {
   if (fighter.imageUrl && !hasImageError) {
     return (
       <img
-        // src={fighter.imageUrl}
-        src={""}
+        src={fighter.imageUrl}
         alt={fighter.name}
         onError={() => setHasImageError(true)}
         className={`${sharedClasses} object-cover object-top`}
