@@ -129,7 +129,10 @@ const HomePage = () => {
       return null;
     }
 
+    // Prefer open/locked events with fights — skip closed (past) events so the
+    // featured card always shows the next upcoming or currently active event.
     return (
+      events.find((entry) => Array.isArray(entry?.fights) && entry.fights.length > 0 && entry.status !== "closed") ||
       events.find((entry) => Array.isArray(entry?.fights) && entry.fights.length > 0) ||
       events[0]
     );

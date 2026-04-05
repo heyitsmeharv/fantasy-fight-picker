@@ -156,17 +156,25 @@ const AdminResultsPage = () => {
     });
   };
 
-  const handleStatusChange = (status) => {
-    updateEventStatus(getEventKey(selectedEvent), status);
+  const handleStatusChange = async (status) => {
+    try {
+      await updateEventStatus(getEventKey(selectedEvent), status);
 
-    showToast({
-      title: status === "locked" ? "Event locked" : "Event opened",
-      description:
-        status === "locked"
-          ? `${selectedEvent.name} is now read-only for picks.`
-          : `${selectedEvent.name} can now accept picks again.`,
-      variant: status === "locked" ? "danger" : "success",
-    });
+      showToast({
+        title: status === "locked" ? "Event locked" : "Event opened",
+        description:
+          status === "locked"
+            ? `${selectedEvent.name} is now read-only for picks.`
+            : `${selectedEvent.name} can now accept picks again.`,
+        variant: status === "locked" ? "danger" : "success",
+      });
+    } catch (error) {
+      showToast({
+        title: "Failed to update status",
+        description: error?.message || "Something went wrong. Please try again.",
+        variant: "danger",
+      });
+    }
   };
 
   if (!selectedEvent) {

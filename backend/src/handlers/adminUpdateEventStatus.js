@@ -45,17 +45,20 @@ export const handler = async (event) => {
       return notFound("Event not found");
     }
 
+    const updatedAt = new Date().toISOString();
+
     await ddb.send(
       new UpdateCommand({
         TableName: TABLES.EVENTS,
         Key: { eventId },
-        UpdateExpression: "SET #status = :status, updatedAt = :updatedAt",
+        UpdateExpression: "SET #status = :status, updatedAt = :updatedAt, statusUpdatedAt = :statusUpdatedAt",
         ExpressionAttributeNames: {
           "#status": "status",
         },
         ExpressionAttributeValues: {
           ":status": status,
-          ":updatedAt": new Date().toISOString(),
+          ":updatedAt": updatedAt,
+          ":statusUpdatedAt": updatedAt,
         },
       })
     );
@@ -64,6 +67,8 @@ export const handler = async (event) => {
       event: {
         ...eventRecord,
         status,
+        updatedAt,
+        statusUpdatedAt: updatedAt,
       },
     });
   } catch (error) {

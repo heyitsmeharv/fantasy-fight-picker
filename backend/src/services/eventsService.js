@@ -42,7 +42,19 @@ export const getDerivedEventStatus = (event, now = new Date()) => {
     return "locked";
   }
 
-  return isEventPastLock(event, now) ? "locked" : normalized;
+  if (!isEventPastLock(event, now)) {
+    return normalized;
+  }
+
+  // lockTime has passed — auto-lock unless an admin explicitly changed the status
+  // after the lockTime (tracked via statusUpdatedAt set by adminUpdateEventStatus).
+  const lockTime = parseDate(event?.lockTime);
+  const statusUpdatedAt = parseDate(event?.statusUpdatedAt);
+  if (lockTime && statusUpdatedAt && statusUpdatedAt > lockTime) {
+    return normalized;
+  }
+
+  return "locked";
 };
 
 export const withDerivedEventStatus = (event, now = new Date()) => {

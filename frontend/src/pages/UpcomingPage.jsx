@@ -36,7 +36,7 @@ const UpcomingPage = () => {
     <div className="space-y-6">
       <SectionHeading eyebrow="Schedule" title="Upcoming cards" />
       <div className="grid gap-5 xl:grid-cols-2">
-        {events.map((event) => {
+        {events.filter((event) => event.status !== "closed").map((event) => {
           const eventId = getEventId(event);
           return (
             <EventCard
