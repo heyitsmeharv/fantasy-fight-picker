@@ -283,7 +283,7 @@ const LeaguePage = () => {
               <div
                 key={entry.id || entry.userId}
                 className={`rounded-2xl border p-4 ${entry.isCurrentUser
-                  ? "border-emerald-500/20 bg-emerald-500/10"
+                  ? "border-orange-500/20 bg-orange-500/10"
                   : "border-white/10 bg-white/[0.03]"
                   }`}
               >
@@ -460,7 +460,7 @@ const LeaguePage = () => {
                           </Badge>
                         ) : (
                           <Badge
-                            className={`${smallPillClass} border border-emerald-500/20 bg-emerald-500/15 text-emerald-200`}
+                            className={`${smallPillClass} border border-amber-500/20 bg-amber-500/10 text-amber-200`}
                           >
                             Result pending
                           </Badge>
@@ -471,7 +471,7 @@ const LeaguePage = () => {
                         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">
                                 You
                               </p>
                               <p className="mt-1 text-base font-semibold text-white">

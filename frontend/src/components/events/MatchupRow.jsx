@@ -98,7 +98,7 @@ const MatchupRow = ({
         : "border-[#d20a11]/20 bg-[#d20a11]/10"
       : currentPick
         ? "border-amber-500/20 bg-amber-500/10"
-        : "border-[#d20a11]/20 bg-[#d20a11]/10";
+        : "border-white/10 bg-white/[0.03]";
 
   const yourPickLabelClass =
     currentPick && officialResult
@@ -107,7 +107,7 @@ const MatchupRow = ({
         : "text-red-200"
       : currentPick
         ? "text-amber-200"
-        : "text-red-200";
+        : "text-slate-400";
 
   const yourPickPointsBadgeClass =
     pickedCorrectly
@@ -135,7 +135,7 @@ const MatchupRow = ({
       <CardContent className="p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200 hover:bg-[#d20a11]/15">
+            <Badge className="border border-white/10 bg-white/5 text-white hover:bg-white/5">
               {fight.slotLabel}
             </Badge>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
@@ -289,7 +289,7 @@ const MatchupRow = ({
                 {officialResult ? (
                   <p
                     className={`mt-2 text-xs font-semibold uppercase tracking-[0.2em] ${
-                      pickedCorrectly ? "text-emerald-200" : "text-slate-300"
+                      pickedCorrectly ? "text-emerald-200" : "text-red-200"
                     }`}
                   >
                     {pickedCorrectly ? "Correct pick" : "Did not land"}

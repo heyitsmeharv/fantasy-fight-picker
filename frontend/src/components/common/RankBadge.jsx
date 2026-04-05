@@ -30,7 +30,7 @@ const RankBadge = ({ rank, size = "md", highlight = false }) => {
       : "h-11 w-11 text-sm";
 
   const baseClass = highlight
-    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+    ? "border-orange-500/20 bg-orange-500/10 text-orange-200"
     : isChampion
       ? "border-amber-500/25 bg-amber-500/12 text-amber-200"
       : "border-white/10 bg-[#d20a11]/15 text-white";
