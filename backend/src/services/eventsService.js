@@ -165,8 +165,11 @@ export const listEventsDueForLock = async (nowIso = new Date().toISOString()) =>
       new ScanCommand({
         TableName: TABLES.EVENTS,
         ExclusiveStartKey,
+        // Exclude events where an admin explicitly changed the status AFTER lockTime
+        // (statusUpdatedAt > lockTime means an intentional admin override — don't re-lock).
         FilterExpression:
-          "#status = :open AND attribute_exists(lockTime) AND lockTime <= :now",
+          "#status = :open AND attribute_exists(lockTime) AND lockTime <= :now" +
+          " AND (attribute_not_exists(statusUpdatedAt) OR statusUpdatedAt <= lockTime)",
         ExpressionAttributeNames: {
           "#status": "status",
         },

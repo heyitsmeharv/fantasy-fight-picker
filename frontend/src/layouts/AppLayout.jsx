@@ -18,7 +18,10 @@ const AppLayout = () => {
   const { events } = useResults();
   const { showToast } = useToast();
 
-  const featuredEvent = events[0] || null;
+  const featuredEvent =
+    events.find((e) => e.status !== "closed") ||
+    events[events.length - 1] ||
+    null;
   const featuredEventId = getEventId(featuredEvent);
   const featuredEventCard = featuredEventId ? getEventCard(featuredEventId) : null;
   const selectedCount = featuredEventCard?.selectedCount ?? 0;
