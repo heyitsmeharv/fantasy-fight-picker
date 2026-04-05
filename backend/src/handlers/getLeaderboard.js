@@ -91,6 +91,8 @@ export const handler = async (event) => {
               fights,
             });
 
+            const sortKey = eventRecord?.lockTime || eventRecord?.date || eventRecord?.createdAt || "";
+
             return {
               eventId: card.eventId,
               eventName: eventRecord?.name || card.eventId,
@@ -98,9 +100,11 @@ export const handler = async (event) => {
               correctPicks: totals.correctPicks,
               scoredPicks: totals.scoredPicks,
               status: totals.status,
+              sortKey,
             };
           })
-          .sort((a, b) => b.points - a.points)
+          .sort((a, b) => b.sortKey.localeCompare(a.sortKey))
+          .map(({ sortKey: _sortKey, ...rest }) => rest)
       : [];
 
     return ok({

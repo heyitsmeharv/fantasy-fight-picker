@@ -195,7 +195,7 @@ const PickDetailsModal = ({
                       </div>
                     </div>
                   )}
-
+                  
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
                     <p className="font-medium text-white">Bonus scoring</p>
                     <p className="mt-2 text-slate-400">
