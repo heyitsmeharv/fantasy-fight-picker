@@ -10,7 +10,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import FightSection from "../components/events/FightSection";
 import PickDetailsModal from "../components/events/PickDetailsModal";
 import { usePicks } from "../context/PicksContext";
@@ -129,9 +128,7 @@ const EventPage = () => {
   const eventCard = getEventCard(resolvedEventId);
   const picks = getEventPickMap(resolvedEventId);
   const selectedCount = eventCard?.selectedCount ?? 0;
-  const progressValue = event.fights.length
-    ? Math.round((selectedCount / event.fights.length) * 100)
-    : 0;
+
 
   const mainCard = event.fights.filter((fight) => fight.cardType === "main");
   const prelims = event.fights.filter((fight) => fight.cardType === "prelim");
@@ -329,26 +326,31 @@ const EventPage = () => {
               </div>
 
               <div className="self-start rounded-[20px] border border-white/10 bg-black/30 p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
-                      Pick progress
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-white">
-                      {selectedCount}/{event.fights.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs uppercase tracking-[0.2em] text-slate-300">
-                    {progressValue}%
-                  </div>
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                    Pick progress
+                  </p>
+                  <p className="text-xs font-semibold text-slate-400">
+                    {selectedCount}/{event.fights.length} picked
+                  </p>
                 </div>
 
-                <p className="mt-1 text-sm text-slate-400">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                      event.fights.length > 0 && selectedCount === event.fights.length
+                        ? "bg-emerald-500"
+                        : "bg-[#d20a11]"
+                    }`}
+                    style={{
+                      width: `${event.fights.length > 0 ? (selectedCount / event.fights.length) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+
+                <p className="mt-3 text-sm text-slate-400">
                   Choose a winner for every fight to complete your card.
                 </p>
-
-                <Progress value={progressValue} className="mt-4 h-2.5 bg-white/10" />
               </div>
             </div>
           </CardContent>

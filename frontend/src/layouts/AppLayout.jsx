@@ -83,18 +83,26 @@ const AppLayout = () => {
             <div className="flex min-w-0 flex-col gap-4 xl:items-stretch">
               <div className="flex flex-wrap items-center gap-3 xl:justify-end">
                 {featuredEvent ? (
-                  <div className="flex min-w-[220px] max-w-[320px] items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                    <div className="min-w-0 flex-1">
+                  <div className="min-w-[220px] max-w-[320px] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
                       <p className="truncate text-sm font-medium text-white">
                         {featuredEvent.name}
                       </p>
-                    </div>
-
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold text-white">
-                        {selectedCount}/{totalFights}
+                      <p className="shrink-0 text-xs font-semibold text-slate-400">
+                        {selectedCount}/{totalFights} picked
                       </p>
-                      <p className="text-[11px] leading-none text-slate-400">picked</p>
+                    </div>
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className={`h-1 rounded-full transition-all duration-500 ${
+                          totalFights > 0 && selectedCount === totalFights
+                            ? "bg-emerald-500"
+                            : "bg-[#d20a11]"
+                        }`}
+                        style={{
+                          width: `${totalFights > 0 ? (selectedCount / totalFights) * 100 : 0}%`,
+                        }}
+                      />
                     </div>
                   </div>
                 ) : null}
