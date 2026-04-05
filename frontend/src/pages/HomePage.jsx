@@ -129,12 +129,15 @@ const HomePage = () => {
       return null;
     }
 
-    // Prefer open/locked events with fights — skip closed (past) events so the
-    // featured card always shows the next upcoming or currently active event.
+    // Prefer open/locked events — skip closed (past) events so the featured card
+    // always shows the next upcoming or currently active event. Prefer events
+    // with fights, but a non-closed event without fights beats a closed one.
     return (
       events.find((entry) => Array.isArray(entry?.fights) && entry.fights.length > 0 && entry.status !== "closed") ||
+      events.find((entry) => entry.status !== "closed") ||
       events.find((entry) => Array.isArray(entry?.fights) && entry.fights.length > 0) ||
-      events[0]
+      events[events.length - 1] ||
+      null
     );
   }, [events]);
 
@@ -344,51 +347,57 @@ const HomePage = () => {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {events.map((card) => {
-              const cardId = getEventId(card);
+            {events.filter((card) => card.status !== "closed").length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-slate-400">
+                No upcoming cards scheduled.
+              </div>
+            ) : (
+              events.filter((card) => card.status !== "closed").map((card) => {
+                const cardId = getEventId(card);
 
-              return (
-                <div
-                  key={cardId || card.name}
-                  className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1fr)_96px_220px_auto] md:items-center"
-                >
-                  <div className="min-w-0">
-                    <p className="font-semibold uppercase tracking-[0.04em] text-white">
-                      {card.name}
-                    </p>
-                    <p className="text-sm text-slate-400">
-                      {card.location || card.venue || "Location TBC"}
-                    </p>
-                  </div>
+                return (
+                  <div
+                    key={cardId || card.name}
+                    className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1fr)_96px_220px_auto] md:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold uppercase tracking-[0.04em] text-white">
+                        {card.name}
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        {card.location || card.venue || "Location TBC"}
+                      </p>
+                    </div>
 
-                  <div className="md:justify-self-start">
-                    <Badge
-                      className={
-                        isEventLocked(card)
-                          ? "inline-flex min-w-[84px] justify-center border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200"
-                          : "inline-flex min-w-[84px] justify-center border border-emerald-500/20 bg-emerald-500/15 text-emerald-200"
-                      }
-                    >
-                      {isEventLocked(card) ? "Locked" : "Open"}
-                    </Badge>
-                  </div>
+                    <div className="md:justify-self-start">
+                      <Badge
+                        className={
+                          isEventLocked(card)
+                            ? "inline-flex min-w-[84px] justify-center border border-[#d20a11]/20 bg-[#d20a11]/15 text-red-200"
+                            : "inline-flex min-w-[84px] justify-center border border-emerald-500/20 bg-emerald-500/15 text-emerald-200"
+                        }
+                      >
+                        {isEventLocked(card) ? "Locked" : "Open"}
+                      </Badge>
+                    </div>
 
-                  <div className="w-full text-sm text-slate-300 md:w-[220px]">
-                    <p className="text-white">{formatDateDisplay(card.date)}</p>
-                    <p className="text-slate-500">Locks {formatDateTimeDisplay(card.lockTime)}</p>
-                  </div>
+                    <div className="w-full text-sm text-slate-300 md:w-[220px]">
+                      <p className="text-white">{formatDateDisplay(card.date)}</p>
+                      <p className="text-slate-500">Locks {formatDateTimeDisplay(card.lockTime)}</p>
+                    </div>
 
-                  <div className="md:justify-self-end">
-                    <Button
-                      className="rounded-full bg-white/10 text-white hover:bg-white/15"
-                      onClick={() => cardId && navigate(`/events/${cardId}`)}
-                    >
-                      Open card
-                    </Button>
+                    <div className="md:justify-self-end">
+                      <Button
+                        className="rounded-full bg-white/10 text-white hover:bg-white/15"
+                        onClick={() => cardId && navigate(`/events/${cardId}`)}
+                      >
+                        Open card
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
 

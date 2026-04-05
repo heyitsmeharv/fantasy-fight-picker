@@ -5,6 +5,10 @@ const ROUND_BONUS = 1;
 const normalizeOutcome = (officialResult) => {
   const rawOutcome = String(officialResult?.outcome || "").toLowerCase();
 
+  if (rawOutcome === "no-contest") {
+    return "no-contest";
+  }
+
   if (rawOutcome === "draw" || rawOutcome === "disqualification" || rawOutcome === "win") {
     return rawOutcome;
   }
@@ -29,6 +33,16 @@ export const normalizeOfficialResult = (officialResult) => {
   }
 
   const outcome = normalizeOutcome(officialResult);
+
+  if (outcome === "no-contest") {
+    return {
+      outcome,
+      winnerId: null,
+      winnerName: "No Contest",
+      method: officialResult.method ?? null,
+      round: officialResult.round ?? null,
+    };
+  }
 
   if (outcome === "draw") {
     return {
@@ -99,7 +113,9 @@ export const isNonScoringOutcome = (officialResult) => {
   const normalized = normalizeOfficialResult(officialResult);
 
   return (
-    normalized?.outcome === "draw" || normalized?.outcome === "disqualification"
+    normalized?.outcome === "draw" ||
+    normalized?.outcome === "no-contest" ||
+    normalized?.outcome === "disqualification"
   );
 };
 
@@ -117,6 +133,10 @@ export const getOfficialResultLabel = (officialResult) => {
 
   if (normalized.outcome === "draw") {
     return "Draw";
+  }
+
+  if (normalized.outcome === "no-contest") {
+    return "No Contest";
   }
 
   if (normalized.outcome === "disqualification") {
@@ -187,6 +207,10 @@ export const getPickResultStatus = (pick, officialResult) => {
 
   if (normalized.outcome === "draw") {
     return "draw";
+  }
+
+  if (normalized.outcome === "no-contest") {
+    return "no-contest";
   }
 
   if (normalized.outcome === "disqualification") {

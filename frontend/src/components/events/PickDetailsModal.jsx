@@ -63,11 +63,15 @@ const PickDetailsModal = ({
 
   const handleMethodClick = (method) => {
     const nextMethod = predictedMethod === method ? null : method;
+    const nextRound = nextMethod === "Decision" ? null : predictedRound;
     setPredictedMethod(nextMethod);
+    if (nextMethod === "Decision") {
+      setPredictedRound(null);
+    }
 
     onSave({
       predictedMethod: nextMethod,
-      predictedRound,
+      predictedRound: nextRound,
     });
   };
 
@@ -164,31 +168,33 @@ const PickDetailsModal = ({
                     </div>
                   </div>
 
-                  <div>
-                    <p className="mb-3 text-sm font-medium text-white">Pick round</p>
-                    <div className="flex flex-wrap gap-3">
-                      {Array.from({ length: maxRounds }, (_, index) => index + 1).map(
-                        (round) => {
-                          const active = predictedRound === round;
+                  {predictedMethod !== "Decision" && (
+                    <div>
+                      <p className="mb-3 text-sm font-medium text-white">Pick round</p>
+                      <div className="flex flex-wrap gap-3">
+                        {Array.from({ length: maxRounds }, (_, index) => index + 1).map(
+                          (round) => {
+                            const active = predictedRound === round;
 
-                          return (
-                            <Button
-                              key={round}
-                              variant={active ? "default" : "outline"}
-                              className={
-                                active
-                                  ? "rounded-full border border-[#d20a11] bg-[#d20a11] text-white shadow-[0_0_0_1px_rgba(210,10,17,0.35)] hover:bg-[#b2080e]"
-                                  : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                              }
-                              onClick={() => handleRoundClick(round)}
-                            >
-                              Round {round}
-                            </Button>
-                          );
-                        }
-                      )}
+                            return (
+                              <Button
+                                key={round}
+                                variant={active ? "default" : "outline"}
+                                className={
+                                  active
+                                    ? "rounded-full border border-[#d20a11] bg-[#d20a11] text-white shadow-[0_0_0_1px_rgba(210,10,17,0.35)] hover:bg-[#b2080e]"
+                                    : "rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
+                                }
+                                onClick={() => handleRoundClick(round)}
+                              >
+                                Round {round}
+                              </Button>
+                            );
+                          }
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
                     <p className="font-medium text-white">Bonus scoring</p>
