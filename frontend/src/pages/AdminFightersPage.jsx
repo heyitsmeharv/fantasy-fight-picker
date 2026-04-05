@@ -254,8 +254,8 @@ const AdminFightersPage = () => {
       stance: selectedFighter.stance || "",
       sigStrikes: selectedFighter.sigStrikes || "",
       takedowns: selectedFighter.takedowns || "",
-      // imageUrl: selectedFighter.imageUrl || "",
-      imageUrl: "",
+      imageUrl: selectedFighter.imageUrl || "",
+      // imageUrl: "",
       displayWeightClass: selectedFighter.displayWeightClass || "Roster",
     });
   }, [selectedFighter, selectedFighterId]);
